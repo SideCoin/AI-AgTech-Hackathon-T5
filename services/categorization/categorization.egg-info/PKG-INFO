@@ -1,0 +1,92 @@
+Metadata-Version: 2.4
+Name: categorization
+Version: 0.1.0
+Summary: Agriculture-aware observation categorizer for FarmNote, backed by Google Gemini.
+Author: FarmNote Team
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: google-genai>=1.0
+Requires-Dist: pydantic>=2.6
+Requires-Dist: rapidfuzz>=3.6
+Requires-Dist: python-dotenv>=1.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.23; extra == "dev"
+
+# categorization
+
+Agriculture-aware categorization service for **FarmNote** session folders.
+
+Reads a captured session, asks Google Gemini to assign a short agronomic tag
+to each observation's voice-note transcript, and writes results back to disk
+in the exact shape Part 3 of [`PLAN.md`](../../PLAN.md) expects.
+
+## Quick start
+
+```bash
+# install
+pip install -e ".[dev]"
+
+# set up env
+cp .env.example .env
+# edit .env and paste your Gemini API key
+
+# categorize a session
+python -m categorization run /path/to/session-folder
+
+# inspect the taxonomy that has accumulated
+python -m categorization list-categories
+
+# wipe the taxonomy (asks for confirmation)
+python -m categorization reset-db
+```
+
+## What it produces
+
+Given an input folder like:
+
+```
+session-folder/
+  session.json
+  <uuid-1>.json            # { id, note, latitude, longitude, timestamp }
+  <uuid-1>.jpg
+  <uuid-2>.json
+  <uuid-2>.jpg
+```
+
+after `run` the service:
+
+1. **Updates each `<uuid>.json`** in place, adding a `"category": "<label>"` field.
+2. **Writes `categories.json`** mapping each label to the observation IDs that
+   belong to it:
+   ```json
+   {
+     "aphid damage": ["<uuid-1>", "<uuid-2>"],
+     "powdery mildew": ["<uuid-3>"]
+   }
+   ```
+3. **Persists the taxonomy** in `taxonomy.db` (SQLite) so subsequent sessions
+   reuse the same canonical labels.
+
+## Architecture
+
+```
+session_io  ─┐
+             │              ┌─ Gemini  (gemini-2.5-flash, JSON-mode)
+service ─────┼─ classify ───┤
+             │              └─ normalize  (rapidfuzz fuzzy dedup)
+taxonomy ────┘                              │
+                                            ▼
+                                       taxonomy.db (SQLite)
+```
+
+See [`../../PLAN.md`](../../PLAN.md) §Part 2 for the integration contract.
+
+## Testing
+
+```bash
+pytest tests/
+```
+
+Unit tests cover normalization, taxonomy, and an end-to-end smoke test that
+monkey-patches the Gemini client. No network is required to run the suite.
