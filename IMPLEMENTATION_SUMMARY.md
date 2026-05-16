@@ -29,11 +29,21 @@ All components for the photo capture, GPS, and voice note pipeline have been imp
 - Delegates actual storage to `ObservationStore`
 
 ### 4. **Photo → GPS → Voice Pipeline** (`Session/CaptureCoordinator.swift`)
-- **Photo trigger**: Listens on `GlassesStreamManager.onPhotoCaptured` callback
+- **Photo triggers** (three paths, all converge on `GlassesStreamManager.onPhotoCaptured`):
+  1. Physical glasses button
+  2. Manual on-screen button in `SessionView`
+  3. **Voice command** — wake-word listener (see §4a)
 - **GPS capture**: Snapshots current `CLLocationManager.location` immediately
 - **Voice note**: Opens 8-second `SFSpeechRecognizer` window with on-device recognition
 - **Assembly**: Creates `CaptureObservation` and calls `RecordingSessionManager.recordObservation()`
 - **Error handling**: Falls back gracefully if any step fails
+
+### 4a. **Voice Command Trigger** (`Session/CaptureCoordinator.swift`)
+- **Wake-word listener**: continuous on-device `SFSpeechRecognizer` task running on the iPhone microphone while the session is in the `.recording` state
+- **Trigger phrases** (case-insensitive substring match): `"take a photo"`, `"take photo"`, `"snap a photo"`
+- **On match**: fires `onVoiceTrigger` closure → `GlassesStreamManager.capturePhotoManually()`, which routes through the same photo callback chain as the manual button
+- **Mic arbitration**: `CaptureCoordinator` has a `mode` enum (`.idle | .wakeWord | .noteCapture`) ensuring only one `AVAudioEngine` tap is installed at a time. Wake-word listening pauses for the duration of the 8-second voice-note window and resumes after `finalizeCaptureWithNote`
+- **Re-fire prevention**: transcript buffer is cleared after each match so the same partial transcript can't trigger twice
 
 ### 5. **Meta Glasses Integration** 
 - **GlassesConnectionViewModel** (`Glasses/GlassesConnectionViewModel.swift`)
@@ -63,10 +73,12 @@ All components for the photo capture, GPS, and voice note pipeline have been imp
 - **SessionView.swift**: Active recording UI
   - Observation counter
   - Voice note listening indicator with live transcript
+  - Wake-word indicator ("Listening for 'take a photo'…") shown when the wake-word listener is active; hidden during the 8-second note window
   - Camera stream status
   - Manual photo capture button (fallback)
   - End Session button
   - Device connection status
+  - Wires `captureCoordinator.onVoiceTrigger = { streamManager.capturePhotoManually() }` in `.onAppear`; starts/stops wake-word listening in `.onAppear` / `.onDisappear`
 
 ### 7. **App Entry Point** (`GlassesNotesApp.swift`)
 - Calls `Wearables.configure()` on launch
@@ -93,6 +105,8 @@ Created `GlassesNotesTests/ObservationStoreTests.swift` with:
 - ✅ Prevents recording when not in recording state
 
 Tests verify core logic without needing hardware.
+
+**Manual voice-trigger verification**: with a session running, say "take a photo" — confirm (a) photo is captured, (b) wake-word indicator hides and note indicator shows, (c) after the 8-second note window the wake-word indicator returns, (d) repeated phrases within one session each fire exactly once.
 
 ---
 
@@ -125,7 +139,7 @@ The shared `ObservationStoreProtocol` ensures seamless integration.
 
 ## Known Constraints
 
-1. **Voice commands**: Meta Glasses don't expose custom voice triggers via DAT SDK. Voice note input is via iPhone microphone with `SFSpeechRecognizer`. Physical glasses button triggers photo capture automatically via `photoDataPublisher`.
+1. **Voice commands**: Meta Glasses don't expose custom voice triggers via DAT SDK, so wake-word listening runs on the **iPhone microphone** via `SFSpeechRecognizer` (on-device). Supported trigger phrases: `"take a photo"`, `"take photo"`, `"snap a photo"`. The listener is paused during the 8-second post-capture note window because `AVAudioEngine.inputNode` allows only one tap at a time. Physical glasses button continues to trigger capture independently via `photoDataPublisher`.
 
 2. **Testing hardware**: Unit tests compile but require actual device/simulator to run. Core logic is verified via code inspection and test structure.
 

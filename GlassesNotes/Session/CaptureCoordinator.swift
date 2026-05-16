@@ -6,8 +6,18 @@ import Observation
 @Observable
 @MainActor
 final class CaptureCoordinator: NSObject, @preconcurrency CLLocationManagerDelegate {
+    enum Mode {
+        case idle
+        case wakeWord
+        case noteCapture
+    }
+
     private(set) var isListeningForNote: Bool = false
+    private(set) var isListeningForWakeWord: Bool = false
     private(set) var transcribedNote: String = ""
+    private(set) var mode: Mode = .idle
+
+    var onVoiceTrigger: (() -> Void)?
 
     private let locationManager = CLLocationManager()
     private let speechRecognizer: SFSpeechRecognizer?
@@ -18,6 +28,9 @@ final class CaptureCoordinator: NSObject, @preconcurrency CLLocationManagerDeleg
     private var audioEngine = AVAudioEngine()
     private var lastLocation: CLLocationCoordinate2D?
     private var captureTimestamp: Date = Date()
+
+    private let triggerPhrases = ["take a photo", "take photo", "snap a photo"]
+    private var wakeWordBuffer: String = ""
 
     init(sessionManager: RecordingSessionManager) {
         self.sessionManager = sessionManager
@@ -38,6 +51,8 @@ final class CaptureCoordinator: NSObject, @preconcurrency CLLocationManagerDeleg
     func handleCapturedPhoto(_ photoData: Data) {
         guard sessionManager.state == .recording else { return }
 
+        stopWakeWordListening()
+
         captureTimestamp = Date()
         transcribedNote = ""
         lastLocation = locationManager.location?.coordinate
@@ -45,7 +60,60 @@ final class CaptureCoordinator: NSObject, @preconcurrency CLLocationManagerDeleg
         startVoiceNoteCapture(photoData: photoData)
     }
 
-    // MARK: - Private
+    // MARK: - Wake-word listening
+
+    func startWakeWordListening() {
+        guard mode == .idle else { return }
+        guard let recognizer = speechRecognizer, recognizer.isAvailable else { return }
+
+        let request = SFSpeechAudioBufferRecognitionRequest()
+        request.shouldReportPartialResults = true
+        request.requiresOnDeviceRecognition = true
+        self.recognitionRequest = request
+
+        guard startAudioEngineTap(request: request) else { return }
+
+        mode = .wakeWord
+        isListeningForWakeWord = true
+        wakeWordBuffer = ""
+
+        recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
+            guard let self = self else { return }
+            if let result = result {
+                let text = result.bestTranscription.formattedString.lowercased()
+                self.wakeWordBuffer = text
+                if self.triggerPhrases.contains(where: { text.contains($0) }) {
+                    self.handleWakeWordTriggered()
+                }
+            } else if error != nil {
+                // Recognition died; restart if we're still in wake-word mode.
+                if self.mode == .wakeWord {
+                    self.stopWakeWordListening()
+                    if self.sessionManager.state == .recording {
+                        self.startWakeWordListening()
+                    }
+                }
+            }
+        }
+    }
+
+    func stopWakeWordListening() {
+        guard mode == .wakeWord else { return }
+        teardownAudioEngine()
+        mode = .idle
+        isListeningForWakeWord = false
+        wakeWordBuffer = ""
+    }
+
+    private func handleWakeWordTriggered() {
+        // Reset buffer so the same phrase can't fire twice; tear down listening
+        // before invoking the trigger so the note-capture pass can claim the mic.
+        wakeWordBuffer = ""
+        stopWakeWordListening()
+        onVoiceTrigger?()
+    }
+
+    // MARK: - Voice note capture
 
     private func startVoiceNoteCapture(photoData: Data) {
         guard let recognizer = speechRecognizer, recognizer.isAvailable else {
@@ -53,33 +121,18 @@ final class CaptureCoordinator: NSObject, @preconcurrency CLLocationManagerDeleg
             return
         }
 
-        isListeningForNote = true
-
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         request.requiresOnDeviceRecognition = true
-
         self.recognitionRequest = request
 
-        guard let inputNode = audioEngine.inputNode as AVAudioInputNode? else {
-            isListeningForNote = false
+        guard startAudioEngineTap(request: request) else {
             finalizeCaptureWithNote("", photoData: photoData)
             return
         }
 
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
-            request.append(buffer)
-        }
-
-        audioEngine.prepare()
-        do {
-            try audioEngine.start()
-        } catch {
-            isListeningForNote = false
-            finalizeCaptureWithNote("", photoData: photoData)
-            return
-        }
+        mode = .noteCapture
+        isListeningForNote = true
 
         recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
             guard let self = self else { return }
@@ -94,18 +147,15 @@ final class CaptureCoordinator: NSObject, @preconcurrency CLLocationManagerDeleg
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) { [weak self] in
-            self?.stopVoiceNoteCapture(photoData: photoData)
+            guard let self = self, self.mode == .noteCapture else { return }
+            self.stopVoiceNoteCapture(photoData: photoData)
         }
     }
 
     private func stopVoiceNoteCapture(photoData: Data) {
-        audioEngine.inputNode.removeTap(onBus: 0)
-        recognitionRequest?.endAudio()
-        recognitionTask?.cancel()
-
-        if audioEngine.isRunning {
-            audioEngine.stop()
-        }
+        guard mode == .noteCapture else { return }
+        teardownAudioEngine()
+        mode = .idle
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
             self?.finalizeCaptureWithNote(self?.transcribedNote ?? "", photoData: photoData)
@@ -125,6 +175,39 @@ final class CaptureCoordinator: NSObject, @preconcurrency CLLocationManagerDeleg
         )
 
         sessionManager.recordObservation(observation, photo: photoData)
+
+        if sessionManager.state == .recording {
+            startWakeWordListening()
+        }
+    }
+
+    // MARK: - Shared audio engine helpers
+
+    private func startAudioEngineTap(request: SFSpeechAudioBufferRecognitionRequest) -> Bool {
+        let inputNode = audioEngine.inputNode
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
+            request.append(buffer)
+        }
+        audioEngine.prepare()
+        do {
+            try audioEngine.start()
+            return true
+        } catch {
+            inputNode.removeTap(onBus: 0)
+            return false
+        }
+    }
+
+    private func teardownAudioEngine() {
+        audioEngine.inputNode.removeTap(onBus: 0)
+        recognitionRequest?.endAudio()
+        recognitionTask?.cancel()
+        recognitionRequest = nil
+        recognitionTask = nil
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
     }
 
     // MARK: - CLLocationManagerDelegate

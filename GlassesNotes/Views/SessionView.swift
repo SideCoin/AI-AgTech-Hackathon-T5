@@ -40,6 +40,21 @@ struct SessionView: View {
                 .background(Color(.secondarySystemBackground))
                 .cornerRadius(8)
 
+                if captureCoordinator.isListeningForWakeWord {
+                    HStack {
+                        Image(systemName: "mic.circle.fill")
+                            .font(.title3)
+                            .foregroundColor(.purple)
+                        Text("Listening for \"take a photo\"…")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                    .padding()
+                    .background(Color.purple.opacity(0.1))
+                    .cornerRadius(8)
+                }
+
                 if captureCoordinator.isListeningForNote {
                     VStack(spacing: 8) {
                         HStack {
@@ -155,9 +170,17 @@ struct SessionView: View {
             .padding()
         }
         .onAppear {
+            captureCoordinator.onVoiceTrigger = { [weak streamManager] in
+                streamManager?.capturePhotoManually()
+            }
+            captureCoordinator.startWakeWordListening()
             Task {
                 await streamManager.handleStartStreaming()
             }
+        }
+        .onDisappear {
+            captureCoordinator.stopWakeWordListening()
+            captureCoordinator.onVoiceTrigger = nil
         }
     }
 }
