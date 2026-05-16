@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>glassesnotes</string>
+			</array>
+		</dict>
+	</array>
+	<key>MWDAT</key>
+	<dict>
+		<key>AppLinkURLScheme</key>
+		<string>glassesnotes</string>
+		<key>MetaAppID</key>
+		<string>0</string>
+	</dict>
+	<key>UISupportedExternalAccessoryProtocols</key>
+	<array>
+		<string>com.meta.ar.wearable</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>bluetooth-peripheral</string>
+		<string>external-accessory</string>
+	</array>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>FarmNote uses Bluetooth to connect to your Meta glasses.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>FarmNote accesses your glasses camera to capture field observations.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>FarmNote uses the microphone to transcribe your voice notes.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>FarmNote records your GPS location with each observation.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>FarmNote transcribes your voice notes using on-device speech recognition.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>fb-viewapp</string>
+	</array>
+</dict>
+</plist>
