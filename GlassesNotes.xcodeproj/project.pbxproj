@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		008EAA9D2FB917D400EDF27D /* MWDATMockDevice in Frameworks */ = {isa = PBXBuildFile; productRef = 008EAA9C2FB917D400EDF27D /* MWDATMockDevice */; };
+		008EAA9F2FB917D900EDF27D /* MWDATMockDeviceTestClient in Frameworks */ = {isa = PBXBuildFile; productRef = 008EAA9E2FB917D900EDF27D /* MWDATMockDeviceTestClient */; };
 		CE19C8012FB8353200437402 /* MWDATCamera in Frameworks */ = {isa = PBXBuildFile; productRef = CE19C8002FB8353200437402 /* MWDATCamera */; };
 		CE19C8032FB8353200437402 /* MWDATCore in Frameworks */ = {isa = PBXBuildFile; productRef = CE19C8022FB8353200437402 /* MWDATCore */; };
 		CE19C8052FB8353200437402 /* MWDATDisplay in Frameworks */ = {isa = PBXBuildFile; productRef = CE19C8042FB8353200437402 /* MWDATDisplay */; };
@@ -74,6 +76,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				008EAA9D2FB917D400EDF27D /* MWDATMockDevice in Frameworks */,
+				008EAA9F2FB917D900EDF27D /* MWDATMockDeviceTestClient in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -87,6 +91,13 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		008EAA9B2FB917D400EDF27D /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		CE6C37A42FB82C8D000F7D93 = {
 			isa = PBXGroup;
 			children = (
@@ -95,6 +106,7 @@
 				CE6C37AF2FB82C8D000F7D93 /* GlassesNotes */,
 				CE6C37BD2FB82C8F000F7D93 /* GlassesNotesTests */,
 				CE6C37C72FB82C8F000F7D93 /* GlassesNotesUITests */,
+				008EAA9B2FB917D400EDF27D /* Frameworks */,
 				CE6C37AE2FB82C8D000F7D93 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -157,6 +169,8 @@
 			);
 			name = GlassesNotesTests;
 			packageProductDependencies = (
+				008EAA9C2FB917D400EDF27D /* MWDATMockDevice */,
+				008EAA9E2FB917D900EDF27D /* MWDATMockDeviceTestClient */,
 			);
 			productName = GlassesNotesTests;
 			productReference = CE6C37BA2FB82C8F000F7D93 /* GlassesNotesTests.xctest */;
@@ -600,6 +614,16 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		008EAA9C2FB917D400EDF27D /* MWDATMockDevice */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CE19C7FF2FB8353200437402 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATMockDevice;
+		};
+		008EAA9E2FB917D900EDF27D /* MWDATMockDeviceTestClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CE19C7FF2FB8353200437402 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATMockDeviceTestClient;
+		};
 		CE19C8002FB8353200437402 /* MWDATCamera */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = CE19C7FF2FB8353200437402 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;

@@ -78,6 +78,7 @@ final class ObservationStoreTests: XCTestCase {
     }
 }
 
+@MainActor
 final class RecordingSessionManagerTests: XCTestCase {
     var manager: RecordingSessionManager!
     var mockStore: MockObservationStore!
