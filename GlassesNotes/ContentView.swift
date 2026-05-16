@@ -62,21 +62,27 @@ struct ContentView: View {
             VStack(spacing: 12) {
                 Spacer()
 
+                Image(systemName: "eyeglasses")
+                    .font(.system(size: 80))
+                    .foregroundStyle(.black)
+                    .padding(.bottom, 8)
+
                 VStack(spacing: 12) {
-                    Image(systemName: "glasses")
-                        .font(.system(size: 60))
-                        .foregroundColor(.blue)
-
-                    VStack(spacing: 8) {
-                        Text("Connect Your Glasses")
-                            .font(.title)
-                            .fontWeight(.bold)
-
-                        Text("Register with Meta AI to get started")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    .multilineTextAlignment(.center)
+                    RegistrationTipRow(
+                        icon: "camera.viewfinder",
+                        title: "Capture Moments",
+                        text: "Take photos directly from your glasses, capturing exactly what you see."
+                    )
+                    RegistrationTipRow(
+                        icon: "mic.fill",
+                        title: "Voice Notes",
+                        text: "Record audio observations hands-free while your eyes stay on the world."
+                    )
+                    RegistrationTipRow(
+                        icon: "figure.walk",
+                        title: "Enjoy On-the-Go",
+                        text: "Stay hands-free while you move through your day. Move freely, stay connected."
+                    )
                 }
 
                 Spacer()
@@ -95,9 +101,9 @@ struct ContentView: View {
                         Text(connectionViewModel.registrationState == .registering ? "Connecting..." : "Connect my glasses")
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.blue)
+                            .background(Color.black)
                             .foregroundColor(.white)
-                            .cornerRadius(8)
+                            .cornerRadius(12)
                     }
                     .disabled(connectionViewModel.registrationState == .registering)
                 }
@@ -172,6 +178,35 @@ struct ContentView: View {
                 Spacer()
             }
             .padding()
+        }
+    }
+}
+
+struct RegistrationTipRow: View {
+    let icon: String
+    let title: String
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 24)
+                .foregroundStyle(.black)
+                .padding(.leading, 4)
+                .padding(.top, 4)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.black)
+
+                Text(text)
+                    .font(.system(size: 15))
+                    .foregroundStyle(.gray)
+            }
+            Spacer()
         }
     }
 }

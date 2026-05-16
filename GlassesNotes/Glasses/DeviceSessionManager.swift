@@ -65,6 +65,9 @@ final class DeviceSessionManager {
       return session
     }
 
+    // Wait for a device to be discoverable before creating a session
+    try await waitForActiveDevice()
+
     // Create a new session
     do {
       let session = try wearables.createSession(deviceSelector: deviceSelector)
@@ -92,6 +95,17 @@ final class DeviceSessionManager {
   }
 
   // MARK: - Private
+
+  private func waitForActiveDevice(timeout: TimeInterval = 15) async throws(DeviceSessionError) {
+    guard !hasActiveDevice else { return }
+    let deadline = Date().addingTimeInterval(timeout)
+    while !hasActiveDevice {
+      if Date() > deadline {
+        throw .unexpectedError(description: "No eligible device found. Make sure your glasses are on and Bluetooth is connected.")
+      }
+      try? await Task.sleep(for: .milliseconds(200))
+    }
+  }
 
   private func waitForSessionStart(
     stateStream: AsyncStream<DeviceSessionState>,

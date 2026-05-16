@@ -169,6 +169,19 @@ struct SessionView: View {
             }
             .padding()
         }
+        .alert("Streaming Error", isPresented: Binding(
+            get: { streamManager.showError },
+            set: { _ in streamManager.dismissError() }
+        )) {
+            Button("Retry") {
+                Task { await streamManager.handleStartStreaming() }
+            }
+            Button("Dismiss", role: .cancel) {
+                streamManager.dismissError()
+            }
+        } message: {
+            Text(streamManager.errorMessage)
+        }
         .onAppear {
             captureCoordinator.onVoiceTrigger = { [weak streamManager] in
                 streamManager?.capturePhotoManually()
