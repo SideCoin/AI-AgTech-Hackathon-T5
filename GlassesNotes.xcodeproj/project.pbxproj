@@ -6,6 +6,14 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		CE19C8012FB8353200437402 /* MWDATCamera in Frameworks */ = {isa = PBXBuildFile; productRef = CE19C8002FB8353200437402 /* MWDATCamera */; };
+		CE19C8032FB8353200437402 /* MWDATCore in Frameworks */ = {isa = PBXBuildFile; productRef = CE19C8022FB8353200437402 /* MWDATCore */; };
+		CE19C8052FB8353200437402 /* MWDATDisplay in Frameworks */ = {isa = PBXBuildFile; productRef = CE19C8042FB8353200437402 /* MWDATDisplay */; };
+		CE19C8072FB8353200437402 /* MWDATMockDevice in Frameworks */ = {isa = PBXBuildFile; productRef = CE19C8062FB8353200437402 /* MWDATMockDevice */; };
+		CE19C8092FB8353200437402 /* MWDATMockDeviceTestClient in Frameworks */ = {isa = PBXBuildFile; productRef = CE19C8082FB8353200437402 /* MWDATMockDeviceTestClient */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		CE6C37BB2FB82C8F000F7D93 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,6 +32,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		CE19C7FD2FB831D000437402 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		CE19C7FE2FB831F800437402 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		CE6C37AD2FB82C8D000F7D93 /* GlassesNotes.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GlassesNotes.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CE6C37BA2FB82C8F000F7D93 /* GlassesNotesTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GlassesNotesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CE6C37C42FB82C8F000F7D93 /* GlassesNotesUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GlassesNotesUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -52,6 +62,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CE19C8052FB8353200437402 /* MWDATDisplay in Frameworks */,
+				CE19C8012FB8353200437402 /* MWDATCamera in Frameworks */,
+				CE19C8092FB8353200437402 /* MWDATMockDeviceTestClient in Frameworks */,
+				CE19C8072FB8353200437402 /* MWDATMockDevice in Frameworks */,
+				CE19C8032FB8353200437402 /* MWDATCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -75,6 +90,8 @@
 		CE6C37A42FB82C8D000F7D93 = {
 			isa = PBXGroup;
 			children = (
+				CE19C7FE2FB831F800437402 /* .gitignore */,
+				CE19C7FD2FB831D000437402 /* README.md */,
 				CE6C37AF2FB82C8D000F7D93 /* GlassesNotes */,
 				CE6C37BD2FB82C8F000F7D93 /* GlassesNotesTests */,
 				CE6C37C72FB82C8F000F7D93 /* GlassesNotesUITests */,
@@ -112,6 +129,11 @@
 			);
 			name = GlassesNotes;
 			packageProductDependencies = (
+				CE19C8002FB8353200437402 /* MWDATCamera */,
+				CE19C8022FB8353200437402 /* MWDATCore */,
+				CE19C8042FB8353200437402 /* MWDATDisplay */,
+				CE19C8062FB8353200437402 /* MWDATMockDevice */,
+				CE19C8082FB8353200437402 /* MWDATMockDeviceTestClient */,
 			);
 			productName = GlassesNotes;
 			productReference = CE6C37AD2FB82C8D000F7D93 /* GlassesNotes.app */;
@@ -195,6 +217,9 @@
 			);
 			mainGroup = CE6C37A42FB82C8D000F7D93;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				CE19C7FF2FB8353200437402 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = CE6C37AE2FB82C8D000F7D93 /* Products */;
 			projectDirPath = "";
@@ -550,6 +575,45 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		CE19C7FF2FB8353200437402 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/facebook/meta-wearables-dat-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.7.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		CE19C8002FB8353200437402 /* MWDATCamera */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CE19C7FF2FB8353200437402 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATCamera;
+		};
+		CE19C8022FB8353200437402 /* MWDATCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CE19C7FF2FB8353200437402 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATCore;
+		};
+		CE19C8042FB8353200437402 /* MWDATDisplay */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CE19C7FF2FB8353200437402 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATDisplay;
+		};
+		CE19C8062FB8353200437402 /* MWDATMockDevice */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CE19C7FF2FB8353200437402 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATMockDevice;
+		};
+		CE19C8082FB8353200437402 /* MWDATMockDeviceTestClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CE19C7FF2FB8353200437402 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATMockDeviceTestClient;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = CE6C37A52FB82C8D000F7D93 /* Project object */;
 }
