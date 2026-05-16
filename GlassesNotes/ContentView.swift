@@ -14,6 +14,7 @@ struct ContentView: View {
     @State private var recordingSessionManager = RecordingSessionManager()
     @State private var captureCoordinator: CaptureCoordinator?
     @State private var showSessionView = false
+    @State private var showMapView = false
 
     var body: some View {
         Group {
@@ -46,6 +47,9 @@ struct ContentView: View {
                     streamManager: streamManager
                 )
             }
+        }
+        .sheet(isPresented: $showMapView) {
+            MapContainerView(sessionID: recordingSessionManager.sessionID)
         }
     }
 
@@ -149,6 +153,18 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity)
                     .padding()
                     .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+                }
+
+                Button(action: { showMapView = true }) {
+                    HStack {
+                        Image(systemName: "map.fill")
+                        Text("View Field Map")
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.green)
                     .foregroundColor(.white)
                     .cornerRadius(8)
                 }
