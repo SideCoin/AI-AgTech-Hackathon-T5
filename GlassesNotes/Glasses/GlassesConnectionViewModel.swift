@@ -34,10 +34,12 @@ final class GlassesConnectionViewModel {
         }
     }
 
-    isolated deinit {
-        registrationTask?.cancel()
-        deviceStreamTask?.cancel()
-        setupDeviceStreamTask?.cancel()
+    deinit {
+        MainActor.assumeIsolated {
+            registrationTask?.cancel()
+            deviceStreamTask?.cancel()
+            setupDeviceStreamTask?.cancel()
+        }
     }
 
     func connectGlasses() {

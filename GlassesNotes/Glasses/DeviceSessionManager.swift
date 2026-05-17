@@ -13,8 +13,9 @@ final class DeviceSessionManager {
   private let wearables: WearablesInterface
   private let deviceSelector: AutoDeviceSelector
   private var deviceSession: DeviceSession?
-  @ObservationIgnored private var deviceMonitorTask: Task<Void, Never>?
-  @ObservationIgnored private var stateObserverTask: Task<Void, Never>?
+  // nonisolated(unsafe) lets deinit cancel these tasks without main-actor isolation.
+  @ObservationIgnored private nonisolated(unsafe) var deviceMonitorTask: Task<Void, Never>?
+  @ObservationIgnored private nonisolated(unsafe) var stateObserverTask: Task<Void, Never>?
 
   init(wearables: WearablesInterface) {
     self.wearables = wearables
@@ -22,10 +23,11 @@ final class DeviceSessionManager {
     startDeviceMonitoring()
   }
 
-  isolated deinit {
+  deinit {
+    // Tasks are nonisolated(unsafe), safe to cancel here.
+    // deviceSession?.stop() is intentionally omitted — callers must invoke cleanup() first.
     deviceMonitorTask?.cancel()
     stateObserverTask?.cancel()
-    deviceSession?.stop()
   }
 
   /// Stops the device session and cancels monitoring. Call before releasing.

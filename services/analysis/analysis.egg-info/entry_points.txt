@@ -1,0 +1,2 @@
+[console_scripts]
+analysis = analysis.cli:main

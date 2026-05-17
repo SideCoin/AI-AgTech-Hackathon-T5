@@ -1,0 +1,15 @@
+README.md
+pyproject.toml
+analysis/__init__.py
+analysis/__main__.py
+analysis/cli.py
+analysis/gemini_client.py
+analysis/models.py
+analysis/service.py
+analysis.egg-info/PKG-INFO
+analysis.egg-info/SOURCES.txt
+analysis.egg-info/dependency_links.txt
+analysis.egg-info/entry_points.txt
+analysis.egg-info/requires.txt
+analysis.egg-info/top_level.txt
+tests/test_smoke.py

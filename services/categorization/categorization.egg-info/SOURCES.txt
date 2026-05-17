@@ -1,0 +1,17 @@
+README.md
+pyproject.toml
+categorization/__init__.py
+categorization/__main__.py
+categorization/cli.py
+categorization/gemini_client.py
+categorization/models.py
+categorization/normalize.py
+categorization/service.py
+categorization/taxonomy.py
+categorization.egg-info/PKG-INFO
+categorization.egg-info/SOURCES.txt
+categorization.egg-info/dependency_links.txt
+categorization.egg-info/entry_points.txt
+categorization.egg-info/requires.txt
+categorization.egg-info/top_level.txt
+tests/test_smoke.py
