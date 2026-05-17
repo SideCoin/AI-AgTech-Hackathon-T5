@@ -38,6 +38,33 @@ struct ContentView: View {
             streamManager.onPhotoCaptured = { photoData in
                 captureCoordinator.handleCapturedPhoto(photoData)
             }
+            captureCoordinator.onVoiceTrigger = { [weak captureCoordinator] in
+                captureCoordinator?.beginPhoneCameraCapture()
+            }
+            captureCoordinator.onStartSessionVoice = {
+                if !recordingSessionManager.isRecording {
+                    startRecordingFlow()
+                }
+            }
+            captureCoordinator.onEndSessionVoice = {
+                if recordingSessionManager.isRecording {
+                    endRecordingFlow()
+                }
+            }
+            captureCoordinator.startAlwaysOnListening()
+        }
+    }
+
+    private func startRecordingFlow() {
+        recordingSessionManager.startSession()
+        captureCoordinator?.startWakeWordListening()
+        Task { await streamManager?.handleStartStreaming() }
+    }
+
+    private func endRecordingFlow() {
+        Task {
+            await streamManager?.stopSession()
+            recordingSessionManager.endSession()
         }
     }
 
@@ -45,15 +72,17 @@ struct ContentView: View {
 
     private func mainTabView(connectionViewModel: GlassesConnectionViewModel) -> some View {
         Group {
-            if selectedTab == 0, let streamManager, let captureCoordinator {
+            if selectedTab == 0, let captureCoordinator {
                 MainMapView(
                     connectionViewModel: connectionViewModel,
-                    streamManager: streamManager,
                     recordingSessionManager: recordingSessionManager,
                     captureCoordinator: captureCoordinator
                 )
             } else {
-                DataView()
+                DataView(
+                    recordingSessionManager: recordingSessionManager,
+                    captureCoordinator: captureCoordinator
+                )
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -62,6 +91,26 @@ struct ContentView: View {
         }
         .background(Color(.systemBackground).ignoresSafeArea())
         .environment(categoryStore)
+        .sheet(isPresented: phoneCameraSheetBinding) {
+            if let captureCoordinator {
+                ImagePicker(
+                    triggerCapture: Binding(
+                        get: { captureCoordinator.triggerPhoneCapture },
+                        set: { captureCoordinator.triggerPhoneCapture = $0 }
+                    )
+                ) { image in
+                    captureCoordinator.handlePhoneCapturedImage(image)
+                }
+                .ignoresSafeArea()
+            }
+        }
+    }
+
+    private var phoneCameraSheetBinding: Binding<Bool> {
+        Binding(
+            get: { captureCoordinator?.showPhoneCamera ?? false },
+            set: { newValue in captureCoordinator?.showPhoneCamera = newValue }
+        )
     }
 
     // MARK: - Bottom bar (record strip + nav tabs)
@@ -70,7 +119,7 @@ struct ContentView: View {
         VStack(spacing: 0) {
             // ── Record strip ────────────────────────────────────────────────
             Divider()
-            HStack {
+            HStack(spacing: 32) {
                 Spacer()
                 VStack(spacing: 4) {
                     Button { toggleRecording() } label: {
@@ -97,9 +146,35 @@ struct ContentView: View {
                     }
                     .buttonStyle(.plain)
 
-                    Text(isRecording ? "tap to end session" : "tap to start session")
+                    Text(isRecording ? "Tap or say \"End session\"" : "Tap or say \"Start session\"")
                         .font(.system(size: 9, weight: isRecording ? .semibold : .regular))
                         .foregroundStyle(isRecording ? Color.red : Color.secondary)
+                }
+
+                if isRecording, let captureCoordinator {
+                    VStack(spacing: 4) {
+                        Button { captureCoordinator.beginPhoneCameraCapture() } label: {
+                            ZStack {
+                                Circle()
+                                    .fill(Color(.systemBackground))
+                                    .frame(width: 23, height: 23)
+                                    .shadow(color: .black.opacity(0.18), radius: 2, y: 1)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color(.separator), lineWidth: 0.5)
+                                    )
+
+                                Image(systemName: "camera.fill")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Color.primary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+
+                        Text("phone camera")
+                            .font(.system(size: 9))
+                            .foregroundStyle(Color.secondary)
+                    }
                 }
                 Spacer()
             }
@@ -135,14 +210,9 @@ struct ContentView: View {
 
     private func toggleRecording() {
         if isRecording {
-            Task {
-                await streamManager?.stopSession()
-                recordingSessionManager.endSession()
-            }
+            endRecordingFlow()
         } else {
-            recordingSessionManager.startSession()
-            captureCoordinator?.startWakeWordListening()
-            Task { await streamManager?.handleStartStreaming() }
+            startRecordingFlow()
         }
     }
 }
