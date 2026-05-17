@@ -355,29 +355,34 @@ private struct CategoryDrawerView: View {
                     Button {
                         categoryStore.toggle(category.id)
                     } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: enabled ? "checkmark.square.fill" : "square")
-                                .foregroundStyle(enabled ? Color(hex: category.colorHex) : .secondary)
-                                .font(.system(size: 16))
+                        VStack(spacing: 0) {
+                            HStack(spacing: 12) {
+                                Image(systemName: enabled ? "checkmark.square.fill" : "square")
+                                    .foregroundStyle(enabled ? Color(hex: category.colorHex) : .secondary)
+                                    .font(.system(size: 16))
 
-                            Circle()
-                                .fill(Color(hex: category.colorHex))
-                                .frame(width: 10, height: 10)
+                                Circle()
+                                    .fill(Color(hex: category.colorHex))
+                                    .frame(width: 10, height: 10)
 
-                            Text(category.name)
-                                .font(.system(size: 15))
-                                .foregroundStyle(enabled ? .primary : .secondary)
+                                Text(category.name)
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(enabled ? .primary : .secondary)
 
-                            Spacer()
+                                Spacer()
 
-                            Text("\(category.count)")
-                                .font(.system(size: 12, design: .monospaced))
-                                .foregroundStyle(.secondary)
+                                Text("\(category.count)")
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(enabled ? Color(hex: category.colorHex).opacity(0.08) : Color.clear)
+
+                            Divider()
+                                .padding(.leading, 16)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(enabled ? Color(hex: category.colorHex).opacity(0.08) : Color.clear)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -394,12 +399,6 @@ private struct CategoryDrawerView: View {
                             }
                         }
                     }
-
-                    Divider()
-                        .padding(.leading, 16)
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
                 }
 
                 // Add new category row
@@ -416,12 +415,13 @@ private struct CategoryDrawerView: View {
                     Spacer()
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(.vertical, 10)
                 .listRowInsets(EdgeInsets())
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
             }
             .listStyle(.plain)
+            .environment(\.defaultMinListRowHeight, 0)
             .scrollContentBackground(.hidden)
 
             Divider()
@@ -510,8 +510,16 @@ struct SessionLiveBanner: View {
     var recordingSessionManager: RecordingSessionManager
     var captureCoordinator: CaptureCoordinator? = nil
 
+    @Environment(CategorizationCoordinator.self) private var categorizationCoordinator
+
     @State private var currentTime = Date()
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    private var analyzingLabel: String? {
+        if categorizationCoordinator.isCategorizingSession { return "categorizing…" }
+        if categorizationCoordinator.isAnalyzingImage     { return "analyzing…" }
+        return nil
+    }
 
     private var elapsedString: String {
         guard let start = recordingSessionManager.startTime else { return "00:00:00" }
@@ -540,6 +548,23 @@ struct SessionLiveBanner: View {
             }
 
             Spacer()
+
+            if let analyzingLabel {
+                HStack(spacing: 5) {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .controlSize(.mini)
+                        .tint(.white)
+                    Text(analyzingLabel)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.9))
+                }
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(Color.white.opacity(0.15))
+                .clipShape(Capsule())
+                .transition(.opacity)
+            }
 
             if let captureCoordinator, captureCoordinator.isAudioActive {
                 AudioWaveformView(level: CGFloat(captureCoordinator.audioLevel))
@@ -601,6 +626,7 @@ struct MainMapView: View {
     var captureCoordinator: CaptureCoordinator
 
     @Environment(CategoryStore.self) private var categoryStore
+    @Environment(CategorizationCoordinator.self) private var categorizationCoordinator
     @State private var mapViewModel = MapViewModel()
     @State private var selectedAnnotation: ObservationAnnotation?
     @State private var drawerOpen = false
@@ -691,6 +717,10 @@ struct MainMapView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            } else if categorizationCoordinator.isCategorizingSession {
+                categorizingPill
+                    .padding(.top, 8)
+                    .frame(maxWidth: .infinity, alignment: .center)
             }
 
             // ── 6. Zoom + my-location controls (top-right) ──────────────────
@@ -731,9 +761,28 @@ struct MainMapView: View {
         .onChange(of: recordingSessionManager.state) { _, newState in
             if newState == .ended { mapViewModel.loadAllSessions() }
         }
+        .onChange(of: categorizationCoordinator.refreshToken) { _, _ in
+            mapViewModel.loadAllSessions()
+        }
     }
 
     // MARK: - Sub-views
+
+    private var categorizingPill: some View {
+        HStack(spacing: 6) {
+            ProgressView()
+                .progressViewStyle(.circular)
+                .controlSize(.mini)
+                .tint(.white)
+            Text("categorizing session…")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.white)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Color.black.opacity(0.75))
+        .clipShape(Capsule())
+    }
 
     private var activeCategoryChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {

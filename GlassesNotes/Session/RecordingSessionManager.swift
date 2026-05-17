@@ -16,6 +16,7 @@ final class RecordingSessionManager {
     private(set) var startTime: Date?
 
     private let store: ObservationStoreProtocol
+    var categorizationCoordinator: CategorizationCoordinator?
 
     init(store: ObservationStoreProtocol = ObservationStore()) {
         self.store = store
@@ -45,6 +46,11 @@ final class RecordingSessionManager {
             try store.saveSessionManifest(manifest)
         } catch {
             assertionFailure("Failed to update session manifest: \(error)")
+        }
+
+        if let coordinator = categorizationCoordinator {
+            let snapshotID = sessionID
+            Task { await coordinator.processSessionEnd(sessionID: snapshotID) }
         }
     }
 

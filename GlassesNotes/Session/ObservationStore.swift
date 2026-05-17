@@ -9,6 +9,7 @@ protocol ObservationStoreProtocol {
     func listSessionManifests() throws -> [SessionManifest]
     func deleteSession(id: String) throws
     func deleteObservation(id: UUID, from sessionID: String) throws
+    func updateObservation(_ observation: CaptureObservation, in sessionID: String) throws
 }
 
 final class ObservationStore: ObservationStoreProtocol {
@@ -90,6 +91,17 @@ final class ObservationStore: ObservationStoreProtocol {
         if fileManager.fileExists(atPath: photoURL.path) {
             try fileManager.removeItem(at: photoURL)
         }
+    }
+
+    /// Rewrites just the `<uuid>.json` for one observation. The JPEG is untouched.
+    /// Used by categorization to add `image_report` and `category` after the fact.
+    func updateObservation(_ observation: CaptureObservation, in sessionID: String) throws {
+        let sessionDir = sessionDirectory(id: sessionID)
+        let jsonURL = sessionDir.appendingPathComponent("\(observation.id.uuidString).json")
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let data = try encoder.encode(observation)
+        try data.write(to: jsonURL)
     }
 
     /// Rewrites every observation whose `category` matches `oldId` so its category

@@ -31,6 +31,7 @@ final class CaptureCoordinator: NSObject, @preconcurrency CLLocationManagerDeleg
     private let locationManager = CLLocationManager()
     private let speechRecognizer: SFSpeechRecognizer?
     private let sessionManager: RecordingSessionManager
+    var categorizationCoordinator: CategorizationCoordinator?
 
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
@@ -365,6 +366,12 @@ final class CaptureCoordinator: NSObject, @preconcurrency CLLocationManagerDeleg
         )
 
         sessionManager.recordObservation(observation, photo: photoData)
+
+        if let coordinator = categorizationCoordinator {
+            let obsID = observation.id
+            let sessionID = sessionManager.sessionID
+            Task { await coordinator.processCapture(observationID: obsID, sessionID: sessionID) }
+        }
 
         startWakeWordListening()
     }

@@ -7,9 +7,11 @@ struct CaptureObservation: Codable, Identifiable {
     let longitude: Double
     let timestamp: Date
     var category: String?
+    var imageReport: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case id, note, latitude, longitude, timestamp, category
+        case imageReport = "image_report"
     }
 
     var categoryOrUncategorized: String {

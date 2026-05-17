@@ -84,6 +84,25 @@ final class CategoryStore {
         persist()
     }
 
+    /// Case-insensitive name lookup. Returns nil if no category has that name.
+    func category(named name: String) -> Category? {
+        let target = name.lowercased()
+        return categories.first { $0.name.lowercased() == target }
+    }
+
+    /// Returns an existing category that matches `name` (case-insensitive) or
+    /// mints a brand-new one with the given color. New categories are enabled
+    /// by default so their pins show up on the map immediately.
+    @discardableResult
+    func upsertCategory(name: String, colorHex: String) -> Category {
+        if let existing = category(named: name) { return existing }
+        let new = Category(id: UUID().uuidString, name: name, colorHex: colorHex, count: 0)
+        categories.append(new)
+        enabledCategoryIds.insert(new.id)
+        persist()
+        return new
+    }
+
     /// Deletes a category and reassigns any observations it owned to "uncategorized".
     /// Uncategorized itself cannot be deleted.
     func deleteCategory(id: String) {

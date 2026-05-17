@@ -12,14 +12,18 @@ struct ContentView: View {
     @State private var recordingSessionManager = RecordingSessionManager()
     @State private var captureCoordinator: CaptureCoordinator?
     @State private var categoryStore = CategoryStore()
+    @State private var categorizationCoordinator: CategorizationCoordinator?
     @State private var selectedTab = 0
 
     private var isRecording: Bool { recordingSessionManager.isRecording }
 
     var body: some View {
         Group {
-            if let connectionViewModel {
-                mainTabView(connectionViewModel: connectionViewModel)
+            if let connectionViewModel, let categorizationCoordinator {
+                mainTabView(
+                    connectionViewModel: connectionViewModel,
+                    categorizationCoordinator: categorizationCoordinator
+                )
             } else {
                 ProgressView("Initializing...")
                     .onAppear { setup() }
@@ -30,9 +34,18 @@ struct ContentView: View {
     // MARK: - Setup
 
     private func setup() {
+        // TEMP: one-shot OpenAI key install — run once on device, then DELETE this line
+        // and re-run. Key persists in the Keychain afterwards.
+        try? Secrets.set(.openAI, value: "sk-REPLACE_ME")
+
         connectionViewModel = GlassesConnectionViewModel(wearables: Wearables.shared)
         streamManager = GlassesStreamManager(wearables: Wearables.shared)
         captureCoordinator = CaptureCoordinator(sessionManager: recordingSessionManager)
+
+        let coordinator = CategorizationCoordinator(categoryStore: categoryStore)
+        categorizationCoordinator = coordinator
+        recordingSessionManager.categorizationCoordinator = coordinator
+        captureCoordinator?.categorizationCoordinator = coordinator
 
         if let streamManager, let captureCoordinator {
             streamManager.onPhotoCaptured = { photoData in
@@ -70,7 +83,10 @@ struct ContentView: View {
 
     // MARK: - Main layout
 
-    private func mainTabView(connectionViewModel: GlassesConnectionViewModel) -> some View {
+    private func mainTabView(
+        connectionViewModel: GlassesConnectionViewModel,
+        categorizationCoordinator: CategorizationCoordinator
+    ) -> some View {
         Group {
             if selectedTab == 0, let captureCoordinator {
                 MainMapView(
@@ -91,6 +107,7 @@ struct ContentView: View {
         }
         .background(Color(.systemBackground).ignoresSafeArea())
         .environment(categoryStore)
+        .environment(categorizationCoordinator)
         .sheet(isPresented: phoneCameraSheetBinding) {
             if let captureCoordinator {
                 ImagePicker(
