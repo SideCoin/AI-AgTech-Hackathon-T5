@@ -158,14 +158,29 @@ struct ESRIMapView: UIViewRepresentable {
         controller?.mapView = map
         let existingIDs = Set(map.annotations.compactMap { ($0 as? ObservationAnnotation)?.id })
         let newIDs = Set(annotations.map(\.id))
+        let newAnnByID = Dictionary(uniqueKeysWithValues: annotations.map { ($0.id, $0) })
+
+        // ObservationAnnotation holds `observation` as a `let`, so we can't
+        // mutate its category in place. Detect pins whose category changed
+        // (e.g. after async categorization) and force a swap so the map
+        // holds the fresh data — otherwise viewFor / the color-refresh loop
+        // below reads the stale category from the old annotation object.
+        let staleExisting: [ObservationAnnotation] = map.annotations.compactMap { ann in
+            guard let oldAnn = ann as? ObservationAnnotation,
+                  let newAnn = newAnnByID[oldAnn.id],
+                  oldAnn.observation.categoryOrUncategorized != newAnn.observation.categoryOrUncategorized
+            else { return nil }
+            return oldAnn
+        }
+        let staleIDs = Set(staleExisting.map(\.id))
 
         let toRemove = map.annotations.filter {
             guard let ann = $0 as? ObservationAnnotation else { return false }
-            return !newIDs.contains(ann.id)
+            return !newIDs.contains(ann.id) || staleIDs.contains(ann.id)
         }
-        let toAdd = annotations.filter { !existingIDs.contains($0.id) }
+        let toAdd = annotations.filter { !existingIDs.contains($0.id) || staleIDs.contains($0.id) }
 
-        print("[Map] updateUIView: incoming=\(annotations.count) existing=\(existingIDs.count) toAdd=\(toAdd.count) toRemove=\(toRemove.count)")
+        print("[Map] updateUIView: incoming=\(annotations.count) existing=\(existingIDs.count) toAdd=\(toAdd.count) toRemove=\(toRemove.count) staleCategory=\(staleIDs.count)")
 
         map.removeAnnotations(toRemove)
         map.addAnnotations(toAdd)
