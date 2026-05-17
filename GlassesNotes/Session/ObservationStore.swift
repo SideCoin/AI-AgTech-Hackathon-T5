@@ -92,6 +92,25 @@ final class ObservationStore: ObservationStoreProtocol {
         }
     }
 
+    /// Rewrites every observation whose `category` matches `oldId` so its category
+    /// becomes `newId` (pass `nil` to mark them uncategorized).
+    func reassignCategory(from oldId: String, to newId: String?) throws {
+        let manifests = try listSessionManifests()
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        for manifest in manifests {
+            let items = (try? load(sessionID: manifest.id)) ?? []
+            for (obs, _) in items where obs.category == oldId {
+                var updated = obs
+                updated.category = newId
+                let data = try encoder.encode(updated)
+                let url = sessionDirectory(id: manifest.id)
+                    .appendingPathComponent("\(obs.id.uuidString).json")
+                try data.write(to: url)
+            }
+        }
+    }
+
     func listSessionManifests() throws -> [SessionManifest] {
         let sessionsRoot = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("sessions")

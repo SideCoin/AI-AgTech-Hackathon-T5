@@ -29,7 +29,9 @@ final class DataViewModel {
             }
             return String(format: "%d:%02d:%02d", secs / 3600, (secs % 3600) / 60, secs % 60)
         }
-        var categoryId: String? { observations.first?.observation.category }
+        var categoryIds: Set<String> {
+            Set(observations.map { $0.observation.categoryOrUncategorized })
+        }
     }
 
     var entries: [Entry] = []
@@ -84,7 +86,7 @@ struct DataView: View {
     private var filteredEntries: [DataViewModel.Entry] {
         var result = viewModel.entries
         if let catId = selectedCategoryFilter {
-            result = result.filter { $0.categoryId == catId }
+            result = result.filter { $0.categoryIds.contains(catId) }
         }
         return sortNewest ? result : result.reversed()
     }
@@ -226,23 +228,13 @@ struct DataView: View {
             photoStack(count: entry.photoCount, photoURL: entry.observations.first?.photoURL)
 
             VStack(alignment: .leading, spacing: 4) {
-                // Header: category dot + name + duration
+                // Header: session title (date/time) + duration
                 HStack(spacing: 6) {
-                    if let catId = entry.categoryId,
-                       let cat = categoryStore.categories.first(where: { $0.id == catId }) {
-                        Circle()
-                            .fill(Color(hex: cat.colorHex))
-                            .frame(width: 8, height: 8)
-                        Text(cat.name)
-                            .font(.system(size: 13, weight: .semibold))
-                    } else {
-                        Image(systemName: "mappin")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
-                        Text("Uncategorized")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                    }
+                    Image(systemName: "rectangle.stack")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                    Text(entry.manifest.startTime.formatted(date: .abbreviated, time: .shortened))
+                        .font(.system(size: 13, weight: .semibold))
                     Spacer()
                     Text(entry.durationString)
                         .font(.system(size: 11, design: .monospaced))
@@ -255,20 +247,15 @@ struct DataView: View {
                     .foregroundStyle(entry.primaryNote.isEmpty ? .secondary : .primary)
                     .lineLimit(2)
 
-                // Location + timestamp
-                HStack(spacing: 10) {
-                    if !entry.primaryLocation.isEmpty {
-                        HStack(spacing: 3) {
-                            Image(systemName: "mappin")
-                                .font(.system(size: 9))
-                            Text(entry.primaryLocation)
-                                .font(.system(size: 10, design: .monospaced))
-                        }
-                        .foregroundStyle(.secondary)
+                // Location
+                if !entry.primaryLocation.isEmpty {
+                    HStack(spacing: 3) {
+                        Image(systemName: "mappin")
+                            .font(.system(size: 9))
+                        Text(entry.primaryLocation)
+                            .font(.system(size: 10, design: .monospaced))
                     }
-                    Text(entry.manifest.startTime.formatted(date: .abbreviated, time: .shortened))
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundStyle(.secondary)
+                    .foregroundStyle(.secondary)
                 }
             }
         }
@@ -373,30 +360,17 @@ struct SessionDetailView: View {
         List {
             Section {
                 HStack(spacing: 8) {
-                    if let catId = entry.categoryId,
-                       let cat = categoryStore.categories.first(where: { $0.id == catId }) {
-                        Circle()
-                            .fill(Color(hex: cat.colorHex))
-                            .frame(width: 10, height: 10)
-                        Text(cat.name)
-                            .font(.system(size: 14, weight: .semibold))
-                    } else {
-                        Image(systemName: "mappin")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                        Text("Uncategorized")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                    }
+                    Image(systemName: "rectangle.stack")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Text(entry.manifest.startTime.formatted(date: .abbreviated, time: .shortened))
+                        .font(.system(size: 14, weight: .semibold))
                     Spacer()
                     Text(entry.durationString)
                         .font(.system(size: 12, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
                 HStack(spacing: 12) {
-                    Text(entry.manifest.startTime.formatted(date: .abbreviated, time: .shortened))
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(.secondary)
                     Spacer()
                     Text("\(observations.count) photo\(observations.count == 1 ? "" : "s")")
                         .font(.system(size: 12, design: .monospaced))
@@ -424,7 +398,7 @@ struct SessionDetailView: View {
                 }
             }
         }
-        .navigationTitle("Session")
+        .navigationTitle(entry.manifest.startTime.formatted(date: .abbreviated, time: .shortened))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear(perform: reload)
         .fullScreenCover(item: $enlargedPhoto) { photo in
@@ -451,6 +425,19 @@ struct SessionDetailView: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
+                // Category chip
+                let catId = item.observation.categoryOrUncategorized
+                if let cat = categoryStore.categories.first(where: { $0.id == catId }) {
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(Color(hex: cat.colorHex))
+                            .frame(width: 7, height: 7)
+                        Text(cat.name)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 Text(item.observation.note.isEmpty ? "(no note)" : item.observation.note)
                     .font(.system(size: 13))
                     .foregroundStyle(item.observation.note.isEmpty ? .secondary : .primary)

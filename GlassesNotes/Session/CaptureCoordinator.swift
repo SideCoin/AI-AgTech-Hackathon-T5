@@ -61,6 +61,8 @@ final class CaptureCoordinator: NSObject, @preconcurrency CLLocationManagerDeleg
                 print("Speech recognition not authorized")
             }
         }
+
+        print("[wake] init auth=\(SFSpeechRecognizer.authorizationStatus().rawValue) recognizerLocale=\(speechRecognizer?.locale.identifier ?? "nil") available=\(speechRecognizer?.isAvailable ?? false)")
     }
 
     func handleCapturedPhoto(_ photoData: Data) {
@@ -96,45 +98,84 @@ final class CaptureCoordinator: NSObject, @preconcurrency CLLocationManagerDeleg
     // MARK: - Wake-word listening
 
     func startWakeWordListening() {
-        guard mode == .idle else { return }
-        guard let recognizer = speechRecognizer, recognizer.isAvailable else { return }
+        guard mode == .idle else {
+            print("[wake] startWakeWordListening skip — mode=\(mode)")
+            return
+        }
+        guard let recognizer = speechRecognizer, recognizer.isAvailable else {
+            print("[wake] startWakeWordListening skip — recognizer=\(String(describing: speechRecognizer)) available=\(speechRecognizer?.isAvailable ?? false)")
+            return
+        }
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         request.requiresOnDeviceRecognition = true
         self.recognitionRequest = request
 
-        guard startAudioEngineTap(request: request) else { return }
+        guard startAudioEngineTap(request: request) else {
+            print("[wake] startAudioEngineTap returned false")
+            return
+        }
 
         mode = .wakeWord
         isListeningForWakeWord = true
         wakeWordBuffer = ""
+        print("[wake] listening started")
 
+        attachWakeRecognitionTask(recognizer: recognizer, request: request)
+    }
+
+    private func attachWakeRecognitionTask(recognizer: SFSpeechRecognizer, request: SFSpeechAudioBufferRecognitionRequest) {
         recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
             guard let self = self else { return }
+            // Late callback from a recognition task we already replaced — ignore.
+            guard self.mode == .wakeWord, self.recognitionRequest === request else { return }
             if let result = result {
                 let text = result.bestTranscription.formattedString.lowercased()
                 self.wakeWordBuffer = text
+                print("[wake] heard=\"\(text)\" sessionState=\(self.sessionManager.state) hasHandler=\(self.onVoiceTrigger != nil)")
                 self.dispatchWakeWord(in: text)
-            } else if error != nil {
-                if self.mode == .wakeWord {
-                    self.stopWakeWordListening()
-                    self.startWakeWordListening()
-                }
+            } else if let error = error {
+                print("[wake] recognizer error: \(error.localizedDescription) mode=\(self.mode) — swapping task, keeping mic")
+                self.swapWakeRecognitionTask()
             }
         }
+    }
+
+    // Swap the SFSpeechRecognitionTask (and its backing request) without tearing down the audio
+    // engine. The on-device recognizer ends a task after a brief silence with "No speech
+    // detected"; if we restart the whole engine on each cycle we lose ~1s of mic frames and miss
+    // the user's next command. Keeping the tap alive lets the new task start with continuous audio.
+    private func swapWakeRecognitionTask() {
+        guard mode == .wakeWord, let recognizer = speechRecognizer, recognizer.isAvailable else { return }
+
+        recognitionTask?.cancel()
+        recognitionTask = nil
+        recognitionRequest?.endAudio()
+
+        let request = SFSpeechAudioBufferRecognitionRequest()
+        request.shouldReportPartialResults = true
+        request.requiresOnDeviceRecognition = true
+        recognitionRequest = request
+        wakeWordBuffer = ""
+        attachWakeRecognitionTask(recognizer: recognizer, request: request)
     }
 
     private func dispatchWakeWord(in text: String) {
         if sessionManager.state == .recording {
             if endSessionPhrases.contains(where: { text.contains($0) }) {
+                print("[wake] dispatch — end-session phrase matched")
                 handleEndSessionTriggered()
             } else if photoPhrases.contains(where: { text.contains($0) }) {
+                print("[wake] dispatch — photo phrase matched")
                 handleWakeWordTriggered()
             }
         } else {
             if startSessionPhrases.contains(where: { text.contains($0) }) {
+                print("[wake] dispatch — start-session phrase matched")
                 handleStartSessionTriggered()
+            } else if photoPhrases.contains(where: { text.contains($0) }) {
+                print("[wake] dispatch — photo phrase heard but IGNORED (session not recording, say \"start session\" first)")
             }
         }
     }
@@ -148,9 +189,11 @@ final class CaptureCoordinator: NSObject, @preconcurrency CLLocationManagerDeleg
     }
 
     private func handleWakeWordTriggered() {
+        // No explicit snap sound — UIImagePickerController.takePicture() plays the
+        // system shutter when the phone camera fires, so adding our own here doubles it up.
         wakeWordBuffer = ""
         stopWakeWordListening()
-        playPhotoSnapSound()
+        print("[wake] firing onVoiceTrigger (handler=\(onVoiceTrigger != nil ? "set" : "NIL"))")
         onVoiceTrigger?()
     }
 
@@ -318,7 +361,7 @@ final class CaptureCoordinator: NSObject, @preconcurrency CLLocationManagerDeleg
             latitude: lastLocation?.latitude ?? 0,
             longitude: lastLocation?.longitude ?? 0,
             timestamp: captureTimestamp,
-            category: nil
+            category: Category.uncategorizedID
         )
 
         sessionManager.recordObservation(observation, photo: photoData)
@@ -327,10 +370,6 @@ final class CaptureCoordinator: NSObject, @preconcurrency CLLocationManagerDeleg
     }
 
     // MARK: - System sound cues
-
-    private func playPhotoSnapSound() {
-        AudioServicesPlaySystemSound(1108)
-    }
 
     private func playRecordStartSound() {
         AudioServicesPlaySystemSound(1113)
@@ -370,8 +409,11 @@ final class CaptureCoordinator: NSObject, @preconcurrency CLLocationManagerDeleg
             return false
         }
 
+        // Forward to whatever the current recognitionRequest is, not the one captured at install
+        // time — this lets us swap recognition tasks (e.g. on wake-word silence timeout) without
+        // tearing down the mic, so we don't drop the user's next utterance.
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
-            request.append(buffer)
+            self?.recognitionRequest?.append(buffer)
 
             guard let channelData = buffer.floatChannelData?[0] else { return }
             let frameCount = Int(buffer.frameLength)

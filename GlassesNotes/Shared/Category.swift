@@ -6,6 +6,15 @@ struct Category: Codable, Identifiable, Equatable {
     var name: String
     var colorHex: String
     var count: Int
+
+    static let uncategorizedID = "uncategorized"
+    static let uncategorizedColorHex = "#9E9E9E"
+
+    static func makeUncategorized(count: Int = 0) -> Category {
+        Category(id: uncategorizedID, name: "Uncategorized", colorHex: uncategorizedColorHex, count: count)
+    }
+
+    var isUncategorized: Bool { id == Category.uncategorizedID }
 }
 
 extension Color {
@@ -33,6 +42,7 @@ final class CategoryStore {
         load()
         if categories.isEmpty {
             categories = [
+                Category.makeUncategorized(),
                 Category(id: UUID().uuidString, name: "Crop Health",   colorHex: "#4CAF50", count: 0),
                 Category(id: UUID().uuidString, name: "Irrigation",    colorHex: "#2196F3", count: 0),
                 Category(id: UUID().uuidString, name: "Pest & Disease",colorHex: "#F44336", count: 0),
@@ -41,6 +51,15 @@ final class CategoryStore {
             enabledCategoryIds = Set(categories.map(\.id))
             persist()
         }
+        ensureUncategorized()
+    }
+
+    private func ensureUncategorized() {
+        if !categories.contains(where: { $0.isUncategorized }) {
+            categories.insert(Category.makeUncategorized(), at: 0)
+        }
+        enabledCategoryIds.insert(Category.uncategorizedID)
+        persist()
     }
 
     var totalPinCount: Int     { categories.reduce(0) { $0 + $1.count } }
@@ -62,6 +81,21 @@ final class CategoryStore {
     func incrementCount(for categoryId: String) {
         guard let idx = categories.firstIndex(where: { $0.id == categoryId }) else { return }
         categories[idx].count += 1
+        persist()
+    }
+
+    /// Deletes a category and reassigns any observations it owned to "uncategorized".
+    /// Uncategorized itself cannot be deleted.
+    func deleteCategory(id: String) {
+        guard id != Category.uncategorizedID,
+              let idx = categories.firstIndex(where: { $0.id == id }) else { return }
+        let movedCount = categories[idx].count
+        categories.remove(at: idx)
+        enabledCategoryIds.remove(id)
+        if let uIdx = categories.firstIndex(where: { $0.isUncategorized }) {
+            categories[uIdx].count += movedCount
+        }
+        try? ObservationStore().reassignCategory(from: id, to: nil)
         persist()
     }
 

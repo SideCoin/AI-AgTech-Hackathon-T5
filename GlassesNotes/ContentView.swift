@@ -171,7 +171,7 @@ struct ContentView: View {
                         }
                         .buttonStyle(.plain)
 
-                        Text("phone camera")
+                        Text("Tap or say \"Take a photo\"")
                             .font(.system(size: 9))
                             .foregroundStyle(Color.secondary)
                     }

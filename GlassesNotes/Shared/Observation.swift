@@ -11,6 +11,10 @@ struct CaptureObservation: Codable, Identifiable {
     enum CodingKeys: String, CodingKey {
         case id, note, latitude, longitude, timestamp, category
     }
+
+    var categoryOrUncategorized: String {
+        category ?? Category.uncategorizedID
+    }
 }
 
 struct SessionManifest: Codable {

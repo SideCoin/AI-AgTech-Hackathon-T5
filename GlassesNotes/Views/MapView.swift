@@ -44,14 +44,14 @@ private final class ESRITileOverlay: MKTileOverlay {
 final class MapViewModel {
     private(set) var pins: [ObservationAnnotation] = []
 
-    func addPin(lat: Double, lon: Double, note: String, category: String? = nil, photo: UIImage? = nil) {
+    func addPin(lat: Double, lon: Double, note: String, category: String? = Category.uncategorizedID, photo: UIImage? = nil) {
         let obs = CaptureObservation(
             id: UUID(),
             note: note,
             latitude: lat,
             longitude: lon,
             timestamp: Date(),
-            category: category
+            category: category ?? Category.uncategorizedID
         )
         var photoURL: URL? = nil
         if let photo, let data = photo.jpegData(compressionQuality: 0.8) {
@@ -163,7 +163,7 @@ struct ESRIMapView: UIViewRepresentable {
         // Refresh colors for existing annotations
         for ann in map.annotations.compactMap({ $0 as? ObservationAnnotation }) {
             if let view = map.view(for: ann) as? MKMarkerAnnotationView {
-                if let catId = ann.observation.category, let color = categoryColors[catId] {
+                if let color = categoryColors[ann.observation.categoryOrUncategorized] {
                     view.markerTintColor = color
                 } else {
                     view.markerTintColor = .systemGreen
@@ -220,7 +220,7 @@ struct ESRIMapView: UIViewRepresentable {
             let view = mapView.dequeueReusableAnnotationView(withIdentifier: "pin", for: obs) as! MKMarkerAnnotationView
             view.annotation = obs
 
-            if let catId = obs.observation.category, let color = parent.categoryColors[catId] {
+            if let color = parent.categoryColors[obs.observation.categoryOrUncategorized] {
                 view.markerTintColor = color
             } else {
                 view.markerTintColor = .systemGreen
@@ -307,6 +307,7 @@ private struct CategoryDrawerView: View {
     @Environment(CategoryStore.self) private var categoryStore
 
     var onClose: () -> Void
+    var onCategoryDeleted: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -347,60 +348,81 @@ private struct CategoryDrawerView: View {
 
             Divider()
 
-            // Category list
-            ScrollView {
-                VStack(spacing: 0) {
-                    ForEach(categoryStore.categories) { category in
-                        let enabled = categoryStore.isEnabled(category.id)
-                        Button {
-                            categoryStore.toggle(category.id)
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: enabled ? "checkmark.square.fill" : "square")
-                                    .foregroundStyle(enabled ? Color(hex: category.colorHex) : .secondary)
-                                    .font(.system(size: 16))
+            // Category list — uses List so each row supports native swipe-to-delete.
+            List {
+                ForEach(categoryStore.categories) { category in
+                    let enabled = categoryStore.isEnabled(category.id)
+                    Button {
+                        categoryStore.toggle(category.id)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: enabled ? "checkmark.square.fill" : "square")
+                                .foregroundStyle(enabled ? Color(hex: category.colorHex) : .secondary)
+                                .font(.system(size: 16))
 
-                                Circle()
-                                    .fill(Color(hex: category.colorHex))
-                                    .frame(width: 10, height: 10)
+                            Circle()
+                                .fill(Color(hex: category.colorHex))
+                                .frame(width: 10, height: 10)
 
-                                Text(category.name)
-                                    .font(.system(size: 15))
-                                    .foregroundStyle(enabled ? .primary : .secondary)
+                            Text(category.name)
+                                .font(.system(size: 15))
+                                .foregroundStyle(enabled ? .primary : .secondary)
 
-                                Spacer()
+                            Spacer()
 
-                                Text("\(category.count)")
-                                    .font(.system(size: 12, design: .monospaced))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                            .background(enabled ? Color(hex: category.colorHex).opacity(0.08) : Color.clear)
+                            Text("\(category.count)")
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundStyle(.secondary)
                         }
-                        .buttonStyle(.plain)
-
-                        Divider()
-                            .padding(.leading, 16)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(enabled ? Color(hex: category.colorHex).opacity(0.08) : Color.clear)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        if !category.isUncategorized {
+                            Button(role: .destructive) {
+                                categoryStore.deleteCategory(id: category.id)
+                                onCategoryDeleted?()
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
 
-                    // Add new category row
-                    HStack(spacing: 12) {
-                        Image(systemName: "square")
-                            .foregroundStyle(.secondary)
-                            .font(.system(size: 16))
-                        Image(systemName: "plus")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
-                        Text("new category")
-                            .font(.system(size: 15))
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    Divider()
+                        .padding(.leading, 16)
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                 }
+
+                // Add new category row
+                HStack(spacing: 12) {
+                    Image(systemName: "square")
+                        .foregroundStyle(.secondary)
+                        .font(.system(size: 16))
+                    Image(systemName: "plus")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                    Text("new category")
+                        .font(.system(size: 15))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .listRowInsets(EdgeInsets())
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
 
             Divider()
 
@@ -434,6 +456,8 @@ private struct CategoryDrawerView: View {
 struct ObservationDetailView: View {
     let annotation: ObservationAnnotation
 
+    @Environment(CategoryStore.self) private var categoryStore
+
     var body: some View {
         NavigationStack {
             List {
@@ -459,8 +483,19 @@ struct ObservationDetailView: View {
                     Text(annotation.observation.timestamp.formatted(date: .complete, time: .shortened))
                         .foregroundStyle(.secondary)
                 }
-                if let category = annotation.observation.category {
-                    Section("Category") { Text(category) }
+                Section("Category") {
+                    let catId = annotation.observation.categoryOrUncategorized
+                    if let cat = categoryStore.categories.first(where: { $0.id == catId }) {
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(Color(hex: cat.colorHex))
+                                .frame(width: 10, height: 10)
+                            Text(cat.name)
+                        }
+                    } else {
+                        Text("Uncategorized")
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             .navigationTitle("Observation")
@@ -577,8 +612,7 @@ struct MainMapView: View {
 
     private var filteredAnnotations: [ObservationAnnotation] {
         mapViewModel.pins.filter { ann in
-            guard let catId = ann.observation.category else { return true }
-            return categoryStore.isEnabled(catId)
+            categoryStore.isEnabled(ann.observation.categoryOrUncategorized)
         }
     }
 
@@ -611,7 +645,10 @@ struct MainMapView: View {
             GeometryReader { geo in
                 let drawerWidth = geo.size.width * 0.62
                 HStack(spacing: 0) {
-                    CategoryDrawerView(onClose: closeDrawer)
+                    CategoryDrawerView(
+                        onClose: closeDrawer,
+                        onCategoryDeleted: { mapViewModel.loadAllSessions() }
+                    )
                         .frame(width: drawerWidth)
                         .shadow(color: .black.opacity(0.15), radius: 8, x: 4, y: 0)
                     Spacer()

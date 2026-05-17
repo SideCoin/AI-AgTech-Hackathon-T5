@@ -6,6 +6,8 @@ struct SessionView: View {
     var captureCoordinator: CaptureCoordinator
     var streamManager: GlassesStreamManager
 
+    @State private var previousVoiceTrigger: (() -> Void)?
+
     var body: some View {
         ZStack {
             Color(.systemBackground).edgesIgnoringSafeArea(.all)
@@ -183,6 +185,7 @@ struct SessionView: View {
             Text(streamManager.errorMessage)
         }
         .onAppear {
+            previousVoiceTrigger = captureCoordinator.onVoiceTrigger
             captureCoordinator.onVoiceTrigger = { [weak streamManager] in
                 streamManager?.capturePhotoManually()
             }
@@ -193,7 +196,8 @@ struct SessionView: View {
         }
         .onDisappear {
             captureCoordinator.stopWakeWordListening()
-            captureCoordinator.onVoiceTrigger = nil
+            captureCoordinator.onVoiceTrigger = previousVoiceTrigger
+            previousVoiceTrigger = nil
         }
     }
 }
