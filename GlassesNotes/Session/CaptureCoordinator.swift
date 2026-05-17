@@ -184,8 +184,23 @@ final class CaptureCoordinator: NSObject, @preconcurrency CLLocationManagerDeleg
     // MARK: - Shared audio engine helpers
 
     private func startAudioEngineTap(request: SFSpeechAudioBufferRecognitionRequest) -> Bool {
+        // Fresh engine each time — reusing a stopped engine produces stale input-node state.
+        audioEngine = AVAudioEngine()
+
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.record, mode: .measurement, options: .duckOthers)
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
+        } catch {
+            return false
+        }
+
         let inputNode = audioEngine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
+
+        // A zero sample rate means no audio hardware is available (e.g. simulator without mic).
+        guard recordingFormat.sampleRate > 0 else { return false }
+
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
             request.append(buffer)
         }
@@ -208,6 +223,7 @@ final class CaptureCoordinator: NSObject, @preconcurrency CLLocationManagerDeleg
         if audioEngine.isRunning {
             audioEngine.stop()
         }
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     // MARK: - CLLocationManagerDelegate

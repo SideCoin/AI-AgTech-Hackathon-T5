@@ -6,6 +6,7 @@ protocol ObservationStoreProtocol {
     func loadSessionManifest(sessionID: String) throws -> SessionManifest
     func saveSessionManifest(_ manifest: SessionManifest) throws
     func sessionDirectory(id: String) -> URL
+    func listSessionManifests() throws -> [SessionManifest]
 }
 
 final class ObservationStore: ObservationStoreProtocol {
@@ -69,5 +70,32 @@ final class ObservationStore: ObservationStoreProtocol {
     func sessionDirectory(id: String) -> URL {
         let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         return documentsURL.appendingPathComponent("sessions").appendingPathComponent(id)
+    }
+
+    func listSessionManifests() throws -> [SessionManifest] {
+        let sessionsRoot = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("sessions")
+        guard fileManager.fileExists(atPath: sessionsRoot.path) else { return [] }
+
+        let dirs = try fileManager.contentsOfDirectory(
+            at: sessionsRoot,
+            includingPropertiesForKeys: [.creationDateKey],
+            options: .skipsHiddenFiles
+        )
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        var manifests: [SessionManifest] = []
+        for dir in dirs {
+            var isDir: ObjCBool = false
+            guard fileManager.fileExists(atPath: dir.path, isDirectory: &isDir), isDir.boolValue else { continue }
+            let manifestURL = dir.appendingPathComponent("session.json")
+            guard let data = try? Data(contentsOf: manifestURL),
+                  let manifest = try? decoder.decode(SessionManifest.self, from: data) else { continue }
+            manifests.append(manifest)
+        }
+
+        return manifests.sorted { ($0.startTime) > ($1.startTime) }
     }
 }

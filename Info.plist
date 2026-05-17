@@ -51,5 +51,7 @@
 	<array>
 		<string>fb-viewapp</string>
 	</array>
+	<key>UILaunchScreen</key>
+	<dict/>
 </dict>
 </plist>

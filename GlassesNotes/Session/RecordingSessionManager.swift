@@ -13,6 +13,7 @@ final class RecordingSessionManager {
     private(set) var state: RecordingState = .idle
     private(set) var sessionID: String = ""
     private(set) var observationCount: Int = 0
+    private(set) var startTime: Date?
 
     private let store: ObservationStoreProtocol
 
@@ -20,10 +21,13 @@ final class RecordingSessionManager {
         self.store = store
     }
 
+    var isRecording: Bool { state == .recording }
+
     func startSession() {
         let newSessionID = UUID().uuidString
         self.sessionID = newSessionID
         self.observationCount = 0
+        self.startTime = Date()
         self.state = .recording
 
         let manifest = SessionManifest(id: newSessionID, startTime: Date(), endTime: nil)
@@ -37,6 +41,7 @@ final class RecordingSessionManager {
     func endSession() {
         guard state == .recording else { return }
         state = .ended
+        startTime = nil
 
         do {
             var manifest = try store.loadSessionManifest(sessionID: sessionID)

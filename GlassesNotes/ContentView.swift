@@ -2,8 +2,6 @@
 //  ContentView.swift
 //  GlassesNotes
 //
-//  Created by Shizun Yang on 5/15/26.
-//
 
 import MWDATCore
 import SwiftUI
@@ -13,200 +11,138 @@ struct ContentView: View {
     @State private var streamManager: GlassesStreamManager?
     @State private var recordingSessionManager = RecordingSessionManager()
     @State private var captureCoordinator: CaptureCoordinator?
-    @State private var showSessionView = false
-    @State private var showMapView = false
+    @State private var categoryStore = CategoryStore()
+    @State private var selectedTab = 0
+
+    private var isRecording: Bool { recordingSessionManager.isRecording }
 
     var body: some View {
         Group {
-            if let connectionViewModel = connectionViewModel {
-                if connectionViewModel.registrationState == .registered {
-                    homeView
-                } else {
-                    registrationView(connectionViewModel)
-                }
+            if let connectionViewModel {
+                mainTabView(connectionViewModel: connectionViewModel)
             } else {
                 ProgressView("Initializing...")
-                    .onAppear {
-                        connectionViewModel = GlassesConnectionViewModel(wearables: Wearables.shared)
-                        streamManager = GlassesStreamManager(wearables: Wearables.shared)
-                        captureCoordinator = CaptureCoordinator(sessionManager: recordingSessionManager)
+                    .onAppear { setup() }
+            }
+        }
+    }
 
-                        if let streamManager = streamManager, let captureCoordinator = captureCoordinator {
-                            streamManager.onPhotoCaptured = { photoData in
-                                captureCoordinator.handleCapturedPhoto(photoData)
+    // MARK: - Setup
+
+    private func setup() {
+        connectionViewModel = GlassesConnectionViewModel(wearables: Wearables.shared)
+        streamManager = GlassesStreamManager(wearables: Wearables.shared)
+        captureCoordinator = CaptureCoordinator(sessionManager: recordingSessionManager)
+
+        if let streamManager, let captureCoordinator {
+            streamManager.onPhotoCaptured = { photoData in
+                captureCoordinator.handleCapturedPhoto(photoData)
+            }
+        }
+    }
+
+    // MARK: - Main layout
+
+    private func mainTabView(connectionViewModel: GlassesConnectionViewModel) -> some View {
+        Group {
+            if selectedTab == 0, let streamManager, let captureCoordinator {
+                MainMapView(
+                    connectionViewModel: connectionViewModel,
+                    streamManager: streamManager,
+                    recordingSessionManager: recordingSessionManager,
+                    captureCoordinator: captureCoordinator
+                )
+            } else {
+                DataView()
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            bottomBar
+        }
+        .background(Color(.systemBackground).ignoresSafeArea())
+        .environment(categoryStore)
+    }
+
+    // MARK: - Bottom bar (record strip + nav tabs)
+
+    private var bottomBar: some View {
+        VStack(spacing: 0) {
+            // ── Record strip ────────────────────────────────────────────────
+            Divider()
+            HStack {
+                Spacer()
+                VStack(spacing: 4) {
+                    Button { toggleRecording() } label: {
+                        ZStack {
+                            Circle()
+                                .fill(isRecording ? Color.red : Color(.systemBackground))
+                                .frame(width: 23, height: 23)
+                                .shadow(color: .black.opacity(0.18), radius: 2, y: 1)
+                                .overlay(
+                                    Circle()
+                                        .stroke(isRecording ? Color.clear : Color(.separator), lineWidth: 0.5)
+                                )
+
+                            if isRecording {
+                                RoundedRectangle(cornerRadius: 1.5)
+                                    .fill(Color.white)
+                                    .frame(width: 8, height: 8)
+                            } else {
+                                Circle()
+                                    .fill(Color.red)
+                                    .frame(width: 11, height: 11)
                             }
                         }
                     }
+                    .buttonStyle(.plain)
+
+                    Text(isRecording ? "tap to end session" : "tap to start session")
+                        .font(.system(size: 9, weight: isRecording ? .semibold : .regular))
+                        .foregroundStyle(isRecording ? Color.red : Color.secondary)
+                }
+                Spacer()
             }
-        }
-        .sheet(isPresented: $showSessionView) {
-            if let streamManager = streamManager, let captureCoordinator = captureCoordinator {
-                SessionView(
-                    recordingSessionManager: recordingSessionManager,
-                    captureCoordinator: captureCoordinator,
-                    streamManager: streamManager
-                )
+            .frame(height: 48)
+
+            // ── Nav tabs ────────────────────────────────────────────────────
+            Divider()
+            HStack(spacing: 0) {
+                navBarButton(index: 0, icon: "map.fill",    label: "Map")
+                navBarButton(index: 1, icon: "list.bullet", label: "Data")
             }
+            .frame(height: 49)
         }
-        .sheet(isPresented: $showMapView) {
-            MapContainerView(sessionID: recordingSessionManager.sessionID)
-        }
+        .background(Color(.systemBackground).ignoresSafeArea(edges: .bottom))
     }
 
-    // MARK: - Registration View
-
-    private func registrationView(_ connectionViewModel: GlassesConnectionViewModel) -> some View {
-        ZStack {
-            Color.white.edgesIgnoringSafeArea(.all)
-
-            VStack(spacing: 12) {
-                Spacer()
-
-                Image(systemName: "eyeglasses")
-                    .font(.system(size: 80))
-                    .foregroundStyle(.black)
-                    .padding(.bottom, 8)
-
-                VStack(spacing: 12) {
-                    RegistrationTipRow(
-                        icon: "camera.viewfinder",
-                        title: "Capture Moments",
-                        text: "Take photos directly from your glasses, capturing exactly what you see."
-                    )
-                    RegistrationTipRow(
-                        icon: "mic.fill",
-                        title: "Voice Notes",
-                        text: "Record audio observations hands-free while your eyes stay on the world."
-                    )
-                    RegistrationTipRow(
-                        icon: "figure.walk",
-                        title: "Enjoy On-the-Go",
-                        text: "Stay hands-free while you move through your day. Move freely, stay connected."
-                    )
-                }
-
-                Spacer()
-
-                VStack(spacing: 20) {
-                    Text("You'll be redirected to the Meta AI app to confirm your connection.")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.gray)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, 12)
-
-                    Button(action: {
-                        connectionViewModel.connectGlasses()
-                    }) {
-                        Text(connectionViewModel.registrationState == .registering ? "Connecting..." : "Connect my glasses")
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.black)
-                            .foregroundColor(.white)
-                            .cornerRadius(12)
-                    }
-                    .disabled(connectionViewModel.registrationState == .registering)
-                }
+    private func navBarButton(index: Int, icon: String, label: String) -> some View {
+        Button { selectedTab = index } label: {
+            VStack(spacing: 3) {
+                Image(systemName: icon)
+                    .font(.system(size: 20))
+                Text(label)
+                    .font(.system(size: 10))
             }
-            .padding(.all, 24)
+            .foregroundStyle(selectedTab == index ? Color.accentColor : Color.secondary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
         }
-        .alert("Error", isPresented: .constant(connectionViewModel.showError)) {
-            Button("OK") { connectionViewModel.dismissError() }
-        } message: {
-            Text(connectionViewModel.errorMessage)
-        }
+        .buttonStyle(.plain)
     }
 
-    // MARK: - Home View
+    // MARK: - Recording toggle
 
-    private var homeView: some View {
-        ZStack {
-            Color(.systemBackground).edgesIgnoringSafeArea(.all)
-
-            VStack(spacing: 20) {
-                VStack(spacing: 12) {
-                    HStack {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                            .font(.title2)
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Glasses Connected")
-                                .font(.headline)
-
-                            Text("Ready to start recording")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-
-                        Spacer()
-                    }
-                    .padding()
-                    .background(Color.green.opacity(0.1))
-                    .cornerRadius(8)
-                }
-
-                Spacer()
-
-                Button(action: {
-                    recordingSessionManager.startSession()
-                    showSessionView = true
-                }) {
-                    HStack {
-                        Image(systemName: "record.circle.fill")
-                        Text("Start Recording Session")
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(8)
-                }
-
-                Button(action: { showMapView = true }) {
-                    HStack {
-                        Image(systemName: "map.fill")
-                        Text("View Field Map")
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.green)
-                    .foregroundColor(.white)
-                    .cornerRadius(8)
-                }
-
-                Spacer()
+    private func toggleRecording() {
+        if isRecording {
+            Task {
+                await streamManager?.stopSession()
+                recordingSessionManager.endSession()
             }
-            .padding()
-        }
-    }
-}
-
-struct RegistrationTipRow: View {
-    let icon: String
-    let title: String
-    let text: String
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 24)
-                .foregroundStyle(.black)
-                .padding(.leading, 4)
-                .padding(.top, 4)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.black)
-
-                Text(text)
-                    .font(.system(size: 15))
-                    .foregroundStyle(.gray)
-            }
-            Spacer()
+        } else {
+            recordingSessionManager.startSession()
+            captureCoordinator?.startWakeWordListening()
+            Task { await streamManager?.handleStartStreaming() }
         }
     }
 }
