@@ -69,7 +69,10 @@ final class MapViewModel {
 
     func loadAllSessions() {
         let store = ObservationStore()
-        guard let manifests = try? store.listSessionManifests() else { return }
+        guard let manifests = try? store.listSessionManifests() else {
+            print("[Map] loadAllSessions: listSessionManifests threw — leaving pins unchanged (count=\(pins.count))")
+            return
+        }
         var all: [ObservationAnnotation] = []
         for manifest in manifests {
             if let items = try? store.load(sessionID: manifest.id) {
@@ -77,6 +80,8 @@ final class MapViewModel {
             }
         }
         pins = all
+        let catSet = Set(all.map { $0.observation.categoryOrUncategorized })
+        print("[Map] loadAllSessions: manifests=\(manifests.count) pins=\(all.count) categories=\(catSet)")
     }
 }
 
@@ -157,8 +162,22 @@ struct ESRIMapView: UIViewRepresentable {
         }
         let toAdd = annotations.filter { !existingIDs.contains($0.id) }
 
+        print("[Map] updateUIView: incoming=\(annotations.count) existing=\(existingIDs.count) toAdd=\(toAdd.count) toRemove=\(toRemove.count)")
+
         map.removeAnnotations(toRemove)
         map.addAnnotations(toAdd)
+
+        // First time we have any pins, frame them so the user isn't staring at
+        // an empty Cupertino/world view. Also disarm the user-location auto-
+        // center so it doesn't immediately jump away from the pins. The fit
+        // is deferred to the next runloop because updateUIView can run before
+        // MKMapView has a real frame (showAnnotations silently no-ops on a
+        // 0×0 map view, which also leaves the tile overlay rendering black).
+        if !context.coordinator.didInitialFit, !annotations.isEmpty {
+            context.coordinator.didInitialFit = true
+            context.coordinator.didCenterOnUser = true
+            context.coordinator.scheduleInitialFit(on: map, annotations: annotations)
+        }
 
         // Refresh colors for existing annotations
         for ann in map.annotations.compactMap({ $0 as? ObservationAnnotation }) {
@@ -179,9 +198,45 @@ struct ESRIMapView: UIViewRepresentable {
 
     final class Coordinator: NSObject, MKMapViewDelegate {
         var parent: ESRIMapView
-        private var didCenterOnUser = false
+        var didCenterOnUser = false
+        var didInitialFit = false
 
         init(_ parent: ESRIMapView) { self.parent = parent }
+
+        /// Calls `showAnnotations` once the map has a non-zero frame. SwiftUI
+        /// can invoke `updateUIView` before the MKMapView is laid out, and
+        /// showAnnotations/setRegion silently no-op on a 0×0 view. Also
+        /// clamps the resulting span so that coincident pins (or a single
+        /// pin) don't zoom infinitely deep and leave tiles unable to render.
+        func scheduleInitialFit(on map: MKMapView, annotations: [ObservationAnnotation], attempt: Int = 0) {
+            DispatchQueue.main.async { [weak self, weak map] in
+                guard let self, let map else { return }
+                if map.bounds.width > 0, map.bounds.height > 0 {
+                    map.showAnnotations(annotations, animated: false)
+                    // showAnnotations collapses to span=(0,0) when all pins
+                    // share a coordinate. Force a sane minimum so tiles load.
+                    let r = map.region
+                    let minSpan = 0.01 // ~1km
+                    if r.span.latitudeDelta < minSpan || r.span.longitudeDelta < minSpan {
+                        let fallback = MKCoordinateRegion(
+                            center: r.center,
+                            latitudinalMeters: 500,
+                            longitudinalMeters: 500
+                        )
+                        map.setRegion(fallback, animated: false)
+                        print("[Map]   span was \(r.span.latitudeDelta),\(r.span.longitudeDelta) — expanded to 500m")
+                    }
+                    let final = map.region
+                    print("[Map]   fitted on attempt \(attempt) bounds=\(map.bounds.size) center=(\(String(format: "%.5f", final.center.latitude)), \(String(format: "%.5f", final.center.longitude))) span=(\(String(format: "%.4f", final.span.latitudeDelta)), \(String(format: "%.4f", final.span.longitudeDelta)))")
+                } else if attempt < 20 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        self.scheduleInitialFit(on: map, annotations: annotations, attempt: attempt + 1)
+                    }
+                } else {
+                    print("[Map]   fit gave up: map.bounds still zero after \(attempt) attempts")
+                }
+            }
+        }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let tile = overlay as? MKTileOverlay {
@@ -205,12 +260,14 @@ struct ESRIMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            print("[Map] viewFor: \(type(of: annotation))")
             if let userLocation = annotation as? MKUserLocation {
                 let identifier = "userLocation"
                 let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)
                     ?? MKAnnotationView(annotation: userLocation, reuseIdentifier: identifier)
                 view.annotation = userLocation
                 view.canShowCallout = false
+                view.layer.zPosition = -1
                 applyUserLocationStyle(to: view, isRecording: parent.isRecording)
                 return view
             }
@@ -220,13 +277,18 @@ struct ESRIMapView: UIViewRepresentable {
             let view = mapView.dequeueReusableAnnotationView(withIdentifier: "pin", for: obs) as! MKMarkerAnnotationView
             view.annotation = obs
 
-            if let color = parent.categoryColors[obs.observation.categoryOrUncategorized] {
+            let catKey = obs.observation.categoryOrUncategorized
+            let lookedUp = parent.categoryColors[catKey]
+            if let color = lookedUp {
                 view.markerTintColor = color
             } else {
                 view.markerTintColor = .systemGreen
             }
             view.glyphImage = UIImage(systemName: "mappin")
             view.canShowCallout = true
+            view.displayPriority = .required
+            view.clusteringIdentifier = nil
+            print("[Map] pin view: id=\(obs.id.uuidString.prefix(8)) cat=\(catKey.prefix(8)) tint=\(view.markerTintColor?.description ?? "nil") lookedUp=\(lookedUp != nil) glyph=\(view.glyphImage != nil) alpha=\(view.alpha) hidden=\(view.isHidden) keys=\(parent.categoryColors.keys.map { String($0.prefix(8)) })")
 
             if let photoURL = obs.photoURL, let image = UIImage(contentsOfFile: photoURL.path) {
                 let iv = UIImageView(image: image)
@@ -637,9 +699,11 @@ struct MainMapView: View {
     private var isRecording: Bool { recordingSessionManager.isRecording }
 
     private var filteredAnnotations: [ObservationAnnotation] {
-        mapViewModel.pins.filter { ann in
+        let result = mapViewModel.pins.filter { ann in
             categoryStore.isEnabled(ann.observation.categoryOrUncategorized)
         }
+        print("[Map] filteredAnnotations: \(result.count)/\(mapViewModel.pins.count) enabled=\(categoryStore.enabledCategoryIds)")
+        return result
     }
 
     private var categoryColors: [String: UIColor] {
@@ -756,12 +820,15 @@ struct MainMapView: View {
             quickNoteSheet
         }
         .onAppear {
+            print("[Map] MainMapView.onAppear fired (selectedTab visible? mapViewModel.pins=\(mapViewModel.pins.count))")
             mapViewModel.loadAllSessions()
         }
         .onChange(of: recordingSessionManager.state) { _, newState in
+            print("[Map] onChange recordingSessionManager.state → \(newState)")
             if newState == .ended { mapViewModel.loadAllSessions() }
         }
-        .onChange(of: categorizationCoordinator.refreshToken) { _, _ in
+        .onChange(of: categorizationCoordinator.refreshToken) { oldVal, newVal in
+            print("[Map] onChange refreshToken \(oldVal) → \(newVal)")
             mapViewModel.loadAllSessions()
         }
     }
