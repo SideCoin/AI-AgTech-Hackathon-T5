@@ -84,6 +84,29 @@ final class CategoryStore {
         persist()
     }
 
+    /// Recomputes every category's `count` from the given observations so the
+    /// numbers shown in the drawer match the pins actually on disk. Anything
+    /// with no category, or a category id that no longer exists, falls into
+    /// Uncategorized. Call this after loading observations from disk.
+    func recomputeCounts(from observations: [CaptureObservation]) {
+        let validIDs = Set(categories.map(\.id))
+        var tally: [String: Int] = [:]
+        for obs in observations {
+            let raw = obs.categoryOrUncategorized
+            let id = validIDs.contains(raw) ? raw : Category.uncategorizedID
+            tally[id, default: 0] += 1
+        }
+        var changed = false
+        for i in categories.indices {
+            let newCount = tally[categories[i].id] ?? 0
+            if categories[i].count != newCount {
+                categories[i].count = newCount
+                changed = true
+            }
+        }
+        if changed { persist() }
+    }
+
     /// Case-insensitive name lookup. Returns nil if no category has that name.
     func category(named name: String) -> Category? {
         let target = name.lowercased()

@@ -67,19 +67,22 @@ final class MapViewModel {
         pins = observations.map { ObservationAnnotation(observation: $0.observation, photoURL: $0.photoURL) }
     }
 
-    func loadAllSessions() {
+    func loadAllSessions(categoryStore: CategoryStore? = nil) {
         let store = ObservationStore()
         guard let manifests = try? store.listSessionManifests() else {
             print("[Map] loadAllSessions: listSessionManifests threw — leaving pins unchanged (count=\(pins.count))")
             return
         }
         var all: [ObservationAnnotation] = []
+        var allObservations: [CaptureObservation] = []
         for manifest in manifests {
             if let items = try? store.load(sessionID: manifest.id) {
                 all += items.map { ObservationAnnotation(observation: $0.observation, photoURL: $0.photoURL) }
+                allObservations += items.map(\.observation)
             }
         }
         pins = all
+        categoryStore?.recomputeCounts(from: allObservations)
         let catSet = Set(all.map { $0.observation.categoryOrUncategorized })
         print("[Map] loadAllSessions: manifests=\(manifests.count) pins=\(all.count) categories=\(catSet)")
     }
@@ -737,7 +740,7 @@ struct MainMapView: View {
                 HStack(spacing: 0) {
                     CategoryDrawerView(
                         onClose: closeDrawer,
-                        onCategoryDeleted: { mapViewModel.loadAllSessions() }
+                        onCategoryDeleted: { mapViewModel.loadAllSessions(categoryStore: categoryStore) }
                     )
                         .frame(width: drawerWidth)
                         .shadow(color: .black.opacity(0.15), radius: 8, x: 4, y: 0)
@@ -821,15 +824,15 @@ struct MainMapView: View {
         }
         .onAppear {
             print("[Map] MainMapView.onAppear fired (selectedTab visible? mapViewModel.pins=\(mapViewModel.pins.count))")
-            mapViewModel.loadAllSessions()
+            mapViewModel.loadAllSessions(categoryStore: categoryStore)
         }
         .onChange(of: recordingSessionManager.state) { _, newState in
             print("[Map] onChange recordingSessionManager.state → \(newState)")
-            if newState == .ended { mapViewModel.loadAllSessions() }
+            if newState == .ended { mapViewModel.loadAllSessions(categoryStore: categoryStore) }
         }
         .onChange(of: categorizationCoordinator.refreshToken) { oldVal, newVal in
             print("[Map] onChange refreshToken \(oldVal) → \(newVal)")
-            mapViewModel.loadAllSessions()
+            mapViewModel.loadAllSessions(categoryStore: categoryStore)
         }
     }
 

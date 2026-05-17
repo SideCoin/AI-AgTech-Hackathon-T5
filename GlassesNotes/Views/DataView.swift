@@ -79,6 +79,7 @@ struct DataView: View {
     var captureCoordinator: CaptureCoordinator? = nil
 
     @Environment(CategoryStore.self) private var categoryStore
+    @Environment(CategorizationCoordinator.self) private var categorizationCoordinator
     @State private var viewModel = DataViewModel()
     @State private var selectedCategoryFilter: String? = nil
     @State private var sortNewest = true
@@ -144,6 +145,7 @@ struct DataView: View {
                 if let entry = viewModel.entries.first(where: { $0.id == sessionID }) {
                     SessionDetailView(entry: entry) {
                         viewModel.load()
+                        categorizationCoordinator.notifyDataChanged()
                     }
                 }
             }
@@ -156,6 +158,7 @@ struct DataView: View {
         for id in toDelete {
             viewModel.deleteSession(id: id)
         }
+        categorizationCoordinator.notifyDataChanged()
     }
 
     // MARK: - Header

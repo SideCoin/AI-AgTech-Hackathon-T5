@@ -87,19 +87,26 @@ struct ContentView: View {
         connectionViewModel: GlassesConnectionViewModel,
         categorizationCoordinator: CategorizationCoordinator
     ) -> some View {
-        Group {
-            if selectedTab == 0, let captureCoordinator {
+        // Keep both tabs mounted so MainMapView's MKMapView, mapViewModel, and
+        // user-location centering state survive tab switches. The previous
+        // if/else recreated MainMapView, which made pins flash in and then
+        // disappear when the fresh map re-snapped to the user's location.
+        ZStack {
+            if let captureCoordinator {
                 MainMapView(
                     connectionViewModel: connectionViewModel,
                     recordingSessionManager: recordingSessionManager,
                     captureCoordinator: captureCoordinator
                 )
-            } else {
-                DataView(
-                    recordingSessionManager: recordingSessionManager,
-                    captureCoordinator: captureCoordinator
-                )
+                .opacity(selectedTab == 0 ? 1 : 0)
+                .allowsHitTesting(selectedTab == 0)
             }
+            DataView(
+                recordingSessionManager: recordingSessionManager,
+                captureCoordinator: captureCoordinator
+            )
+            .opacity(selectedTab == 1 ? 1 : 0)
+            .allowsHitTesting(selectedTab == 1)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .safeAreaInset(edge: .bottom, spacing: 0) {

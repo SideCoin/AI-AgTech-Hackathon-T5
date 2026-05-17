@@ -43,6 +43,13 @@ final class CategorizationCoordinator {
         }
     }
 
+    /// Bumps `refreshToken` so MapView reloads pins + recomputes category
+    /// counts. Used by non-categorization callers (e.g. DataView after the
+    /// user deletes a session) to keep the map in sync with disk.
+    func notifyDataChanged() {
+        refreshToken &+= 1
+    }
+
     // MARK: - Per-capture
 
     /// Called from CaptureCoordinator right after an observation is persisted.
