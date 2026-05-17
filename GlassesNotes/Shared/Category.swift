@@ -41,13 +41,7 @@ final class CategoryStore {
     init() {
         load()
         if categories.isEmpty {
-            categories = [
-                Category.makeUncategorized(),
-                Category(id: UUID().uuidString, name: "Crop Health",   colorHex: "#4CAF50", count: 0),
-                Category(id: UUID().uuidString, name: "Irrigation",    colorHex: "#2196F3", count: 0),
-                Category(id: UUID().uuidString, name: "Pest & Disease",colorHex: "#F44336", count: 0),
-                Category(id: UUID().uuidString, name: "Equipment",     colorHex: "#FF9800", count: 0),
-            ]
+            categories = [Category.makeUncategorized()]
             enabledCategoryIds = Set(categories.map(\.id))
             persist()
         }
