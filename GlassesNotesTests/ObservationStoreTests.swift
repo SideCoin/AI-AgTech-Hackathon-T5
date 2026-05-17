@@ -158,4 +158,8 @@ final class MockObservationStore: ObservationStoreProtocol {
     func sessionDirectory(id: String) -> URL {
         return FileManager.default.temporaryDirectory
     }
+
+    func listSessionManifests() throws -> [SessionManifest] {
+        return []
+    }
 }

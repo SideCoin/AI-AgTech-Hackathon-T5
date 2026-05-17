@@ -1,0 +1,90 @@
+{
+  "session_id": "test-session-2026-05-16",
+  "generated_at": "2026-05-16T20:28:45.256298Z",
+  "time_range": "09:00–09:45 on 2026-05-16",
+  "location_summary": "The inspection covered a linear section of a field, approximately 130 meters in length, extending from the southwest (38.5382, -121.7617) to the northeast (38.5394, -121.7605). This area appears to encompass multiple crop rows, with specific issues noted in rows 3 and 4.",
+  "total_observations": 7,
+  "problems_found": [
+    "Powdery mildew",
+    "Aphid infestation",
+    "Leaf spot disease",
+    "Plant wilting",
+    "Blocked drip emitter",
+    "Interveinal chlorosis",
+    "Unspecified observation"
+  ],
+  "observations": [
+    {
+      "observation_id": "11111111-0001-0001-0001-000000000001",
+      "timestamp": "2026-05-16T09:03:00Z",
+      "latitude": 38.5382,
+      "longitude": -121.7617,
+      "problem": "Powdery mildew observed as a white powdery coating on lower leaves of row 4.",
+      "severity": "medium",
+      "recommendation": "Apply an appropriate fungicide and improve air circulation around affected plants in row 4."
+    },
+    {
+      "observation_id": "11111111-0002-0002-0002-000000000002",
+      "timestamp": "2026-05-16T09:08:00Z",
+      "latitude": 38.5384,
+      "longitude": -121.7615,
+      "problem": "Aphid infestation with clusters of small green insects found on new growth tips.",
+      "severity": "medium",
+      "recommendation": "Implement integrated pest management (IPM) strategies, including biological control or targeted insecticidal soap application, focusing on new growth tips."
+    },
+    {
+      "observation_id": "11111111-0003-0003-0003-000000000003",
+      "timestamp": "2026-05-16T09:14:00Z",
+      "latitude": 38.5386,
+      "longitude": -121.7613,
+      "problem": "Leaf spot disease characterized by yellow and brown spots on leaf margins, showing signs of spreading.",
+      "severity": "medium",
+      "recommendation": "Prune affected leaves to prevent further spread and consider a broad-spectrum fungicide application if widespread."
+    },
+    {
+      "observation_id": "11111111-0004-0004-0004-000000000004",
+      "timestamp": "2026-05-16T09:20:00Z",
+      "latitude": 38.5388,
+      "longitude": -121.7611,
+      "problem": "Plant wilting observed despite adequate soil moisture, suggesting potential root issues or vascular disease.",
+      "severity": "high",
+      "recommendation": "Immediately investigate root health for rot or pest damage, and test for soil-borne pathogens. Isolate affected plants if possible."
+    },
+    {
+      "observation_id": "11111111-0005-0005-0005-000000000005",
+      "timestamp": "2026-05-16T09:27:00Z",
+      "latitude": 38.539,
+      "longitude": -121.7609,
+      "problem": "A drip emitter is blocked on row 3, causing water to pool nearby and potentially leading to uneven irrigation.",
+      "severity": "medium",
+      "recommendation": "Clear the blocked drip emitter on row 3 immediately and inspect other emitters in the vicinity for similar issues."
+    },
+    {
+      "observation_id": "11111111-0006-0006-0006-000000000006",
+      "timestamp": "2026-05-16T09:33:00Z",
+      "latitude": 38.5392,
+      "longitude": -121.7607,
+      "problem": "Interveinal chlorosis observed as pale yellow striping between leaf veins on several plants, indicative of a nutrient deficiency.",
+      "severity": "medium",
+      "recommendation": "Conduct a soil and tissue analysis to identify the specific nutrient deficiency (e.g., iron, magnesium) and apply appropriate foliar or soil amendments."
+    },
+    {
+      "observation_id": "11111111-0007-0007-0007-000000000007",
+      "timestamp": "2026-05-16T09:39:00Z",
+      "latitude": 38.5394,
+      "longitude": -121.7605,
+      "problem": "An unspecified observation was recorded without a voice note, indicating a potential issue that was not detailed.",
+      "severity": "low",
+      "recommendation": "Re-inspect the area at 38.5394, -121.7605 to identify the specific issue that prompted the observation."
+    }
+  ],
+  "executive_summary": "The field inspection identified several issues including active fungal diseases (powdery mildew, leaf spot), an aphid infestation, a critical plant wilting problem, a blocked irrigation emitter, and signs of nutrient deficiency. The most urgent concern is the unexplained plant wilting, which requires immediate investigation.",
+  "action_items": [
+    "Immediately investigate the cause of plant wilting, focusing on root health and soil pathogens.",
+    "Clear the blocked drip emitter on row 3 and inspect other emitters for proper function.",
+    "Apply appropriate fungicides for powdery mildew (row 4) and leaf spot disease.",
+    "Implement aphid control measures, such as insecticidal soap or biological control.",
+    "Conduct soil and tissue analysis to diagnose and correct interveinal chlorosis.",
+    "Re-inspect the area of the unspecified observation for any missed issues."
+  ]
+}

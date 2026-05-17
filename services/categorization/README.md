@@ -140,3 +140,50 @@ After a successful run each `<uuid>.json` in the session folder will have a
 > `python -m categorization run` on it will overwrite the category fields — that is
 > expected. To reset it to the original uncategorised state run:
 > `python tests/fixtures/gen_sample_session.py`
+
+## Deployment Roadmap
+
+### Phase 1 — Mac / Python ✅ Complete
+
+The Python service runs on a Mac and processes session folders written by the iOS
+capture pipeline (or the mock fixture).
+
+```
+Meta Glasses ──▶ iOS capture ──▶ session folder on disk
+                                        │
+                                        ▼
+                             python -m categorization run <session>
+                                        │  (Gemini API)
+                                        ▼
+                             categories.json written back to disk
+                                        │
+                                        ▼
+                             iOS map view reads categories.json
+```
+
+**Status:** 13 offline tests green + real Gemini API end-to-end verified (7 observations
+correctly categorised in one batch call).
+
+---
+
+### Phase 2 — iOS / Swift 🔜 Next
+
+Port the categorisation logic directly into the iOS app so no Mac/Python intermediate
+layer is needed at demo time. The app calls the Gemini REST API itself; images are sent
+from memory (`Data`) without an extra disk round-trip.
+
+| Python module | Swift equivalent |
+|---------------|-----------------|
+| `models.py` | `GlassesNotes/Shared/Models.swift` |
+| `gemini_client.py` + `service.py` | `GlassesNotes/Categorization/CategorizationService.swift` |
+| `normalize.py` `clean()` | Swift `String` extension (a few lines) |
+| `taxonomy.py` | Per-session in-memory `[String: [String]]` dict (no SQLite needed for v1) |
+
+**Swift entry point:**
+```swift
+// GlassesNotes/Categorization/CategorizationService.swift
+func categorize(sessionID: String) async throws -> [String: [String]]
+```
+
+The Python service stays in the repo as the reference implementation and Mac testing
+tool; it is not replaced, only supplemented by the Swift version.

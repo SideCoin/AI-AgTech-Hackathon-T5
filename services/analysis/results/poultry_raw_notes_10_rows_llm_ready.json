@@ -1,0 +1,180 @@
+[
+  {
+    "id": "1",
+    "date": "2026-05-16",
+    "time": "06:35",
+    "location": {
+      "latitude": 38.544812,
+      "longitude": -121.741236
+    },
+    "importance": "high",
+    "keynotes": [
+      "Recurring coughing observed near the middle fan row.",
+      "Birds exhibiting unusual quietness and reduced movement, indicating potential lethargy or illness.",
+      "Potential animal health concerns requiring immediate investigation."
+    ],
+    "image_name": "IMG_4419.jpg",
+    "image_report": "The photo shows a large tree with green leaves and a thick, textured brown trunk, featuring a lighter, smoother section of wood where a branch was removed. Bicycles are parked at a rack to the left of the tree. A paved path or road runs alongside the tree. In the background, there are green grassy areas, other trees, and some buildings under a clear sky, with people walking and cycling. The image depicts an outdoor, park-like or campus setting.",
+    "note": "A-03: I heard coughing near the middle fan row again this morning. Birds looked quieter than usual and did not move much when staff walked through."
+  },
+  {
+    "id": "2",
+    "date": "2026-05-16",
+    "time": "07:10",
+    "location": {
+      "latitude": 38.545104,
+      "longitude": -121.740892
+    },
+    "importance": "medium",
+    "keynotes": [
+      "Elevated temperatures observed, with the back side of the house feeling warmer.",
+      "Birds exhibiting signs of heat stress (panting) due to rising temperatures."
+    ],
+    "image_name": "IMG_4420.jpg",
+    "image_report": "The photo shows a vibrant green grassy area or lawn covering the foreground and midground, sloping upwards. In the background, a building with a reddish-brown lower section and a lighter upper section with rectangular features is visible, partially obscured by lush green trees. A clear blue sky is visible above the trees and building. The lighting suggests a bright, sunny day.",
+    "note": "B-01: The back side of the house felt warmer than the entrance. Several birds were panting after the temperature started going up."
+  },
+  {
+    "id": "3",
+    "date": "2026-05-16",
+    "time": "08:25",
+    "location": {
+      "latitude": 38.545376,
+      "longitude": -121.740514
+    },
+    "importance": "medium",
+    "keynotes": [
+      "Litter under the water line is wet and sticky.",
+      "One to two drinker nipples are potentially dripping.",
+      "Requires immediate inspection and repair of drinker lines to prevent further litter degradation."
+    ],
+    "image_name": "IMG_4421.jpg",
+    "image_report": "The image displays a vibrant green grassy area, possibly a lawn or field, under bright sunlight. The grass appears healthy and well-maintained. In the upper part of the image, a building with a reddish wall and a white door is partially visible, along with some dark green trees or bushes in the background. No farm equipment, animals, wet litter, or drinker nipples are visible in the photo.",
+    "note": "C-02: The litter under the water line is wet and sticky. It looks like one or two drinker nipples may still be dripping."
+  },
+  {
+    "id": "4",
+    "date": "2026-05-16",
+    "time": "09:40",
+    "location": {
+      "latitude": 38.545692,
+      "longitude": -121.740178
+    },
+    "importance": "medium",
+    "keynotes": [
+      "Increased feed remaining in pans, indicating reduced consumption.",
+      "Birds approaching feed line slowly, suggesting potential lethargy or lack of appetite.",
+      "Water intake observed as normal, which is a positive sign."
+    ],
+    "image_name": "IMG_4422.jpg",
+    "image_report": "The photo shows an outdoor ground area covered with a mix of green grass and broadleaf weeds. The foreground and mid-ground are heavily covered with dried, yellow-brown, elongated leaves, possibly fallen from a tree, interspersed with patches of green vegetation. The background consists of a denser, uniform patch of bright green grass.",
+    "note": "A-01: Feed pans had more feed left than usual. The birds came to the line slowly, but water intake looked normal."
+  },
+  {
+    "id": "5",
+    "date": "2026-05-16",
+    "time": "11:05",
+    "location": {
+      "latitude": 38.546018,
+      "longitude": -121.739806
+    },
+    "importance": "high",
+    "keynotes": [
+      "Increased dead bird pickup compared to yesterday.",
+      "Mortality concentrated in the rear half of the house.",
+      "No obvious equipment problem identified."
+    ],
+    "image_name": "IMG_4423.jpg",
+    "image_report": "The image shows a sunlit patch of green grass and various weeds. The grass varies in height and density. In the foreground, there is a concrete edge or sidewalk with numerous dried, yellowish leaves scattered on it and among the grass. In the upper background, a metal bicycle rack is partially visible next to a paved surface.",
+    "note": "D-04: Dead bird pickup was higher than yesterday, mostly near the rear half of the house. I could not see an obvious equipment problem."
+  },
+  {
+    "id": "6",
+    "date": "2026-05-16",
+    "time": "12:30",
+    "location": {
+      "latitude": 38.546327,
+      "longitude": -121.739455
+    },
+    "importance": "high",
+    "keynotes": [
+      "Sharp, strong odor inside the house, likely indicating ammonia buildup.",
+      "Damp litter observed near the drinker line.",
+      "Suggests poor ventilation and/or inadequate litter management, posing health risks."
+    ],
+    "image_name": "IMG_4424.jpg",
+    "image_report": "The photo shows a close-up view of a patch of green grass and various weeds, with some areas of exposed soil and dried, light brown leaves at the bottom. A dark gray concrete edge is visible along the very bottom right of the frame. The image is taken outdoors in bright sunlight.",
+    "note": "B-03: The air smelled sharp inside the house. Litter near the drinker line was damp, and the smell got stronger after a few minutes inside."
+  },
+  {
+    "id": "7",
+    "date": "2026-05-16",
+    "time": "13:15",
+    "location": {
+      "latitude": 38.546661,
+      "longitude": -121.739062
+    },
+    "importance": "medium",
+    "keynotes": [
+      "Fan section C-05 is producing a rough sound.",
+      "Airflow is noticeably weaker near the wall-side corner.",
+      "Mechanical inspection of fan section C-05 is recommended."
+    ],
+    "image_name": "IMG_4425.jpg",
+    "image_report": "The photo shows an overhead view of ground cover, primarily consisting of green broadleaf plants with rounded, lobed leaves, interspersed with some grassy weeds, including those with spiky seed heads. Areas of dried, yellowed plant material and dark brown soil or mulch are visible throughout. A concrete edge or pathway runs along the left side of the frame.",
+    "note": "C-05: One fan section made a rough sound during the afternoon check. Airflow felt weaker near the wall-side corner."
+  },
+  {
+    "id": "8",
+    "date": "2026-05-16",
+    "time": "14:20",
+    "location": {
+      "latitude": 38.546934,
+      "longitude": -121.738701
+    },
+    "importance": "high",
+    "keynotes": [
+      "Recurring lower-than-expected egg count reported for section A-06.",
+      "Back rows observed to be lighter than normal, suggesting potential issues with bird density, health, or collection in those areas."
+    ],
+    "image_name": "IMG_4426.jpg",
+    "image_report": "The photo displays a patch of green grass and various weeds, some with seed heads, growing next to a concrete or paved edge. There are also some dried leaves visible on the ground, particularly near the bottom of the image.",
+    "note": "A-06: Egg count was lower than expected again today. The belt looked fine, but the back rows seemed lighter than normal."
+  },
+  {
+    "id": "9",
+    "date": "2026-05-16",
+    "time": "15:45",
+    "location": {
+      "latitude": 38.547211,
+      "longitude": -121.738329
+    },
+    "importance": "medium",
+    "keynotes": [
+      "A few birds observed to be unusually docile and unreactive to staff presence.",
+      "No visible injuries were noted on the birds.",
+      "Potential indicator of bird health or stress."
+    ],
+    "image_name": "IMG_4427.jpg",
+    "image_report": "The photo shows a large tree with a thick, textured brown trunk and abundant green leaves. Several small green shoots are growing directly from the tree's trunk. To the right, a grey metal bicycle rack is visible on a concrete sidewalk. In the background, a white building with stairs leading to an entrance can be seen through the tree branches. The ground is a mix of asphalt and concrete, with shadows cast by the trees and the bicycle rack. No birds are visible in the image.",
+    "note": "D-02: A few birds were sitting in the corner and barely reacted when staff walked by. No clear injuries were visible."
+  },
+  {
+    "id": "10",
+    "date": "2026-05-16",
+    "time": "16:50",
+    "location": {
+      "latitude": 38.547488,
+      "longitude": -121.737964
+    },
+    "importance": "high",
+    "keynotes": [
+      "Feed line section B-05 is not filling evenly.",
+      "Birds are crowding around filled pans, leaving others empty.",
+      "Uneven feed distribution can lead to bird stress and inconsistent growth."
+    ],
+    "image_name": "IMG_4428.jpg",
+    "image_report": "The photo shows a dense green bush covered in numerous small white, star-shaped flowers. A light-colored paved or concrete surface is visible at the top and bottom edges of the image. The image does not depict any farm equipment, birds, or feed lines.",
+    "note": "B-05: One feed line section did not fill evenly. Birds crowded around the nearby pans while some pans stayed almost empty."
+  }
+]

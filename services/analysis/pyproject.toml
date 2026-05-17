@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "analysis"
+version = "0.1.0"
+description = "Field report generator for FarmNote sessions, backed by Google Gemini."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "FarmNote Team" }]
+dependencies = [
+    "google-genai>=1.0",
+    "pydantic>=2.6",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.scripts]
+analysis = "analysis.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["analysis*"]
+exclude = ["tests*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
