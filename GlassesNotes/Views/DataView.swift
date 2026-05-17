@@ -63,11 +63,19 @@ final class DataViewModel {
             isLoading = false
         }
     }
+
+    func deleteSession(id: String) {
+        try? ObservationStore().deleteSession(id: id)
+        entries.removeAll { $0.id == id }
+    }
 }
 
 // MARK: - Data View
 
 struct DataView: View {
+    var recordingSessionManager: RecordingSessionManager
+    var captureCoordinator: CaptureCoordinator? = nil
+
     @Environment(CategoryStore.self) private var categoryStore
     @State private var viewModel = DataViewModel()
     @State private var selectedCategoryFilter: String? = nil
@@ -90,10 +98,13 @@ struct DataView: View {
                     emptyState
                 } else {
                     ForEach(filteredEntries) { entry in
-                        entryRow(entry)
-                            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                            .listRowSeparator(.hidden)
+                        NavigationLink(value: entry.id) {
+                            entryRow(entry)
+                        }
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                        .listRowSeparator(.hidden)
                     }
+                    .onDelete(perform: deleteEntries)
                 }
             }
             .listStyle(.plain)
@@ -112,12 +123,37 @@ struct DataView: View {
                 }
             }
             .safeAreaInset(edge: .top) {
-                headerSection
-                    .background(.background)
+                VStack(spacing: 0) {
+                    if recordingSessionManager.isRecording {
+                        SessionLiveBanner(
+                            recordingSessionManager: recordingSessionManager,
+                            captureCoordinator: captureCoordinator
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .padding(.bottom, 4)
+                    }
+                    headerSection
+                }
+                .background(.background)
             }
             .refreshable { viewModel.load() }
+            .navigationDestination(for: String.self) { sessionID in
+                if let entry = viewModel.entries.first(where: { $0.id == sessionID }) {
+                    SessionDetailView(entry: entry) {
+                        viewModel.load()
+                    }
+                }
+            }
         }
         .onAppear { viewModel.load() }
+    }
+
+    private func deleteEntries(at offsets: IndexSet) {
+        let toDelete = offsets.map { filteredEntries[$0].id }
+        for id in toDelete {
+            viewModel.deleteSession(id: id)
+        }
     }
 
     // MARK: - Header
@@ -314,5 +350,213 @@ struct DataView: View {
             .redacted(reason: .placeholder)
         }
         .padding(.vertical, 12)
+    }
+}
+
+// MARK: - Session Detail Sheet
+
+private struct PhotoIdentifier: Identifiable {
+    let id: URL
+    var url: URL { id }
+}
+
+struct SessionDetailView: View {
+    let entry: DataViewModel.Entry
+    var onChange: (() -> Void)? = nil
+
+    @Environment(CategoryStore.self) private var categoryStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var observations: [(observation: CaptureObservation, photoURL: URL)] = []
+    @State private var enlargedPhoto: PhotoIdentifier?
+
+    var body: some View {
+        List {
+            Section {
+                HStack(spacing: 8) {
+                    if let catId = entry.categoryId,
+                       let cat = categoryStore.categories.first(where: { $0.id == catId }) {
+                        Circle()
+                            .fill(Color(hex: cat.colorHex))
+                            .frame(width: 10, height: 10)
+                        Text(cat.name)
+                            .font(.system(size: 14, weight: .semibold))
+                    } else {
+                        Image(systemName: "mappin")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                        Text("Uncategorized")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text(entry.durationString)
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+                HStack(spacing: 12) {
+                    Text(entry.manifest.startTime.formatted(date: .abbreviated, time: .shortened))
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(observations.count) photo\(observations.count == 1 ? "" : "s")")
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section("Photos") {
+                if observations.isEmpty {
+                    Text("No photos in this session")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 20)
+                } else {
+                    ForEach(observations, id: \.observation.id) { item in
+                        Button {
+                            enlargedPhoto = PhotoIdentifier(id: item.photoURL)
+                        } label: {
+                            photoRow(item)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .onDelete(perform: deletePhotos)
+                }
+            }
+        }
+        .navigationTitle("Session")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear(perform: reload)
+        .fullScreenCover(item: $enlargedPhoto) { photo in
+            FullScreenPhotoView(url: photo.url)
+        }
+    }
+
+    private func photoRow(_ item: (observation: CaptureObservation, photoURL: URL)) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            if let img = UIImage(contentsOfFile: item.photoURL.path) {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 64, height: 64)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            } else {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(.tertiarySystemBackground))
+                    .frame(width: 64, height: 64)
+                    .overlay(
+                        Image(systemName: "camera")
+                            .foregroundStyle(.secondary)
+                    )
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.observation.note.isEmpty ? "(no note)" : item.observation.note)
+                    .font(.system(size: 13))
+                    .foregroundStyle(item.observation.note.isEmpty ? .secondary : .primary)
+                    .lineLimit(3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                HStack(spacing: 8) {
+                    Image(systemName: "mappin")
+                        .font(.system(size: 9))
+                    Text(String(format: "%.4f°, %.4f°", item.observation.latitude, item.observation.longitude))
+                        .font(.system(size: 10, design: .monospaced))
+                    Spacer()
+                    Text(item.observation.timestamp.formatted(date: .omitted, time: .shortened))
+                        .font(.system(size: 10, design: .monospaced))
+                }
+                .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+    }
+
+    private func reload() {
+        observations = (try? ObservationStore().load(sessionID: entry.id)) ?? []
+    }
+
+    private func deletePhotos(at offsets: IndexSet) {
+        let store = ObservationStore()
+        let ids = offsets.map { observations[$0].observation.id }
+        for id in ids {
+            try? store.deleteObservation(id: id, from: entry.id)
+        }
+        observations.removeAll { ids.contains($0.observation.id) }
+
+        if observations.isEmpty {
+            try? store.deleteSession(id: entry.id)
+            onChange?()
+            dismiss()
+        } else {
+            onChange?()
+        }
+    }
+}
+
+// MARK: - Full Screen Photo Viewer
+
+struct FullScreenPhotoView: View {
+    let url: URL
+    @Environment(\.dismiss) private var dismiss
+    @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            if let img = UIImage(contentsOfFile: url.path) {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFit()
+                    .scaleEffect(scale)
+                    .gesture(
+                        MagnificationGesture()
+                            .onChanged { value in
+                                scale = max(1.0, min(lastScale * value, 5.0))
+                            }
+                            .onEnded { _ in
+                                lastScale = scale
+                                if scale < 1.0 {
+                                    withAnimation(.spring()) {
+                                        scale = 1.0
+                                        lastScale = 1.0
+                                    }
+                                }
+                            }
+                    )
+                    .onTapGesture(count: 2) {
+                        withAnimation(.spring()) {
+                            scale = scale > 1.0 ? 1.0 : 2.5
+                            lastScale = scale
+                        }
+                    }
+            } else {
+                VStack(spacing: 12) {
+                    Image(systemName: "photo")
+                        .font(.system(size: 48))
+                        .foregroundStyle(.white.opacity(0.5))
+                    Text("Photo unavailable")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.6))
+                }
+            }
+
+            VStack {
+                HStack {
+                    Spacer()
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 30))
+                            .foregroundStyle(.white.opacity(0.85), .black.opacity(0.4))
+                            .padding()
+                    }
+                }
+                Spacer()
+            }
+        }
+        .statusBarHidden()
     }
 }

@@ -158,4 +158,16 @@ final class MockObservationStore: ObservationStoreProtocol {
     func sessionDirectory(id: String) -> URL {
         return FileManager.default.temporaryDirectory
     }
+
+    func listSessionManifests() throws -> [SessionManifest] {
+        return []
+    }
+
+    func deleteSession(id: String) throws {
+        savedObservations.removeAll()
+    }
+
+    func deleteObservation(id: UUID, from sessionID: String) throws {
+        savedObservations.removeAll { $0.observation.id == id }
+    }
 }

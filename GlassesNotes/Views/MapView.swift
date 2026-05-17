@@ -123,6 +123,7 @@ struct ESRIMapView: UIViewRepresentable {
     let categoryColors: [String: UIColor]
     @Binding var selectedAnnotation: ObservationAnnotation?
     var controller: MapController? = nil
+    var isRecording: Bool = false
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -159,11 +160,6 @@ struct ESRIMapView: UIViewRepresentable {
         map.removeAnnotations(toRemove)
         map.addAnnotations(toAdd)
 
-        if !toAdd.isEmpty {
-            let all = map.annotations.compactMap { $0 as? ObservationAnnotation }
-            map.showAnnotations(all, animated: true)
-        }
-
         // Refresh colors for existing annotations
         for ann in map.annotations.compactMap({ $0 as? ObservationAnnotation }) {
             if let view = map.view(for: ann) as? MKMarkerAnnotationView {
@@ -174,10 +170,16 @@ struct ESRIMapView: UIViewRepresentable {
                 }
             }
         }
+
+        // Refresh user location dot to match recording state
+        if let userView = map.view(for: map.userLocation) {
+            context.coordinator.applyUserLocationStyle(to: userView, isRecording: isRecording)
+        }
     }
 
     final class Coordinator: NSObject, MKMapViewDelegate {
         var parent: ESRIMapView
+        private var didCenterOnUser = false
 
         init(_ parent: ESRIMapView) { self.parent = parent }
 
@@ -188,7 +190,31 @@ struct ESRIMapView: UIViewRepresentable {
             return MKOverlayRenderer(overlay: overlay)
         }
 
+        func mapView(_ mapView: MKMapView, didUpdate userLocation: MKUserLocation) {
+            guard !didCenterOnUser else { return }
+            let coord = userLocation.coordinate
+            guard CLLocationCoordinate2DIsValid(coord),
+                  coord.latitude != 0 || coord.longitude != 0 else { return }
+            didCenterOnUser = true
+            let region = MKCoordinateRegion(
+                center: coord,
+                latitudinalMeters: 500,
+                longitudinalMeters: 500
+            )
+            mapView.setRegion(region, animated: false)
+        }
+
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            if let userLocation = annotation as? MKUserLocation {
+                let identifier = "userLocation"
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)
+                    ?? MKAnnotationView(annotation: userLocation, reuseIdentifier: identifier)
+                view.annotation = userLocation
+                view.canShowCallout = false
+                applyUserLocationStyle(to: view, isRecording: parent.isRecording)
+                return view
+            }
+
             guard let obs = annotation as? ObservationAnnotation else { return nil }
 
             let view = mapView.dequeueReusableAnnotationView(withIdentifier: "pin", for: obs) as! MKMarkerAnnotationView
@@ -222,6 +248,35 @@ struct ESRIMapView: UIViewRepresentable {
             calloutAccessoryControlTapped control: UIControl
         ) {
             parent.selectedAnnotation = view.annotation as? ObservationAnnotation
+        }
+
+        func applyUserLocationStyle(to view: MKAnnotationView, isRecording: Bool) {
+            view.subviews.forEach { $0.removeFromSuperview() }
+
+            let color: UIColor = isRecording ? .systemRed : .systemBlue
+            let size: CGFloat = 22
+            view.frame = CGRect(x: 0, y: 0, width: size, height: size)
+            view.centerOffset = .zero
+
+            let halo = UIView(frame: view.bounds)
+            halo.backgroundColor = color.withAlphaComponent(0.25)
+            halo.layer.cornerRadius = size / 2
+            halo.isUserInteractionEnabled = false
+            view.addSubview(halo)
+
+            let dotSize: CGFloat = 14
+            let dot = UIView(frame: CGRect(
+                x: (size - dotSize) / 2,
+                y: (size - dotSize) / 2,
+                width: dotSize,
+                height: dotSize
+            ))
+            dot.backgroundColor = color
+            dot.layer.cornerRadius = dotSize / 2
+            dot.layer.borderColor = UIColor.white.cgColor
+            dot.layer.borderWidth = 2
+            dot.isUserInteractionEnabled = false
+            view.addSubview(dot)
         }
     }
 }
@@ -414,11 +469,99 @@ struct ObservationDetailView: View {
     }
 }
 
+// MARK: - Session Live Banner (shared)
+
+struct SessionLiveBanner: View {
+    var recordingSessionManager: RecordingSessionManager
+    var captureCoordinator: CaptureCoordinator? = nil
+
+    @State private var currentTime = Date()
+    private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    private var elapsedString: String {
+        guard let start = recordingSessionManager.startTime else { return "00:00:00" }
+        let secs = Int(currentTime.timeIntervalSince(start))
+        return String(format: "%02d:%02d:%02d", secs / 3600, (secs % 3600) / 60, secs % 60)
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(Color.red)
+                .frame(width: 9, height: 9)
+                .overlay(
+                    Circle()
+                        .stroke(Color.red.opacity(0.35), lineWidth: 4)
+                        .scaleEffect(1.6)
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("session live · glasses")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text("\(elapsedString) · \(recordingSessionManager.observationCount) photos")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.75))
+            }
+
+            Spacer()
+
+            if let captureCoordinator, captureCoordinator.isAudioActive {
+                AudioWaveformView(level: CGFloat(captureCoordinator.audioLevel))
+                    .frame(width: 36, height: 18)
+                    .transition(.opacity)
+            }
+
+            Button {
+                // overflow menu placeholder
+            } label: {
+                Image(systemName: "ellipsis")
+                    .foregroundStyle(.white.opacity(0.7))
+                    .font(.system(size: 13))
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Color.black)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .animation(.easeInOut(duration: 0.2), value: captureCoordinator?.isAudioActive)
+        .onReceive(ticker) { currentTime = $0 }
+    }
+}
+
+// MARK: - Audio Waveform
+
+struct AudioWaveformView: View {
+    var level: CGFloat
+    var barCount: Int = 5
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 0.08)) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            GeometryReader { geo in
+                let spacing: CGFloat = 2
+                let totalSpacing = spacing * CGFloat(barCount - 1)
+                let barWidth = max(1.5, (geo.size.width - totalSpacing) / CGFloat(barCount))
+                let amplified = min(1.0, max(0.08, level * 1.4))
+                HStack(alignment: .center, spacing: spacing) {
+                    ForEach(0..<barCount, id: \.self) { i in
+                        let phase = sin(t * 7 + Double(i) * 1.1) * 0.5 + 0.5
+                        let h = max(2, geo.size.height * amplified * (0.35 + 0.65 * CGFloat(phase)))
+                        Capsule()
+                            .fill(Color.white.opacity(0.9))
+                            .frame(width: barWidth, height: h)
+                    }
+                }
+                .frame(width: geo.size.width, height: geo.size.height)
+            }
+        }
+    }
+}
+
 // MARK: - Main Map View
 
 struct MainMapView: View {
     var connectionViewModel: GlassesConnectionViewModel
-    var streamManager: GlassesStreamManager
     var recordingSessionManager: RecordingSessionManager
     var captureCoordinator: CaptureCoordinator
 
@@ -428,10 +571,7 @@ struct MainMapView: View {
     @State private var drawerOpen = false
     @State private var showQuickNoteEntry = false
     @State private var quickNoteText = ""
-    @State private var currentTime = Date()
     @State private var mapController = MapController()
-
-    private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     private var isRecording: Bool { recordingSessionManager.isRecording }
 
@@ -448,12 +588,6 @@ struct MainMapView: View {
         })
     }
 
-    private var elapsedString: String {
-        guard let start = recordingSessionManager.startTime else { return "00:00:00" }
-        let secs = Int(currentTime.timeIntervalSince(start))
-        return String(format: "%02d:%02d:%02d", secs / 3600, (secs % 3600) / 60, secs % 60)
-    }
-
     var body: some View {
         ZStack(alignment: .topLeading) {
             // ── 1. Map ──────────────────────────────────────────────────────
@@ -461,7 +595,8 @@ struct MainMapView: View {
                 annotations: filteredAnnotations,
                 categoryColors: categoryColors,
                 selectedAnnotation: $selectedAnnotation,
-                controller: mapController
+                controller: mapController,
+                isRecording: isRecording
             )
             .ignoresSafeArea()
 
@@ -510,7 +645,10 @@ struct MainMapView: View {
             // ── 5. Top chrome (recording banner) ────────────────────────────
             if isRecording {
                 VStack(alignment: .leading, spacing: 8) {
-                    sessionLiveBanner
+                    SessionLiveBanner(
+                        recordingSessionManager: recordingSessionManager,
+                        captureCoordinator: captureCoordinator
+                    )
                     activeCategoryChips
                 }
                 .padding(.horizontal, 16)
@@ -525,7 +663,7 @@ struct MainMapView: View {
                 Divider().frame(width: 34)
                 mapControlButton(systemImage: "location") { mapController.recenterOnUser() }
             }
-            .padding(.top, 8)
+            .padding(.top, 60)
             .padding(.trailing, 14)
             .frame(maxWidth: .infinity, alignment: .trailing)
 
@@ -542,10 +680,6 @@ struct MainMapView: View {
                 }
             }
 
-            // ── 8. "You are here" pulsing dot during recording ───────────────
-            if isRecording {
-                youAreHereView
-            }
         }
         .sheet(item: $selectedAnnotation) { annotation in
             ObservationDetailView(annotation: annotation)
@@ -554,15 +688,8 @@ struct MainMapView: View {
         .sheet(isPresented: $showQuickNoteEntry) {
             quickNoteSheet
         }
-        .onReceive(ticker) { currentTime = $0 }
         .onAppear {
             mapViewModel.loadAllSessions()
-            captureCoordinator.onVoiceTrigger = { [weak streamManager] in
-                streamManager?.capturePhotoManually()
-            }
-        }
-        .onDisappear {
-            captureCoordinator.onVoiceTrigger = nil
         }
         .onChange(of: recordingSessionManager.state) { _, newState in
             if newState == .ended { mapViewModel.loadAllSessions() }
@@ -570,42 +697,6 @@ struct MainMapView: View {
     }
 
     // MARK: - Sub-views
-
-    private var sessionLiveBanner: some View {
-        HStack(spacing: 12) {
-            Circle()
-                .fill(Color.red)
-                .frame(width: 9, height: 9)
-                .overlay(
-                    Circle()
-                        .stroke(Color.red.opacity(0.35), lineWidth: 4)
-                        .scaleEffect(1.6)
-                )
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("session live · glasses")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
-                Text("\(elapsedString) · \(recordingSessionManager.observationCount) photos")
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.75))
-            }
-
-            Spacer()
-
-            Button {
-                // overflow menu placeholder
-            } label: {
-                Image(systemName: "ellipsis")
-                    .foregroundStyle(.white.opacity(0.7))
-                    .font(.system(size: 13))
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(Color.black)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-    }
 
     private var activeCategoryChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -658,25 +749,6 @@ struct MainMapView: View {
                 .clipShape(Circle())
                 .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
         }
-    }
-
-    private var youAreHereView: some View {
-        GeometryReader { geo in
-            ZStack {
-                Circle()
-                    .stroke(Color.red.opacity(0.3), lineWidth: 1.5)
-                    .frame(width: 54, height: 54)
-                Circle()
-                    .fill(Color.red.opacity(0.15))
-                    .frame(width: 30, height: 30)
-                Circle()
-                    .fill(Color.red)
-                    .frame(width: 14, height: 14)
-                    .overlay(Circle().stroke(Color.white, lineWidth: 2))
-            }
-            .position(x: geo.size.width / 2, y: geo.size.height / 2)
-        }
-        .allowsHitTesting(false)
     }
 
     private var quickNoteSheet: some View {

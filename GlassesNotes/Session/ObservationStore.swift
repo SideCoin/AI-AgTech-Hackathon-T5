@@ -7,6 +7,8 @@ protocol ObservationStoreProtocol {
     func saveSessionManifest(_ manifest: SessionManifest) throws
     func sessionDirectory(id: String) -> URL
     func listSessionManifests() throws -> [SessionManifest]
+    func deleteSession(id: String) throws
+    func deleteObservation(id: UUID, from sessionID: String) throws
 }
 
 final class ObservationStore: ObservationStoreProtocol {
@@ -70,6 +72,24 @@ final class ObservationStore: ObservationStoreProtocol {
     func sessionDirectory(id: String) -> URL {
         let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         return documentsURL.appendingPathComponent("sessions").appendingPathComponent(id)
+    }
+
+    func deleteSession(id: String) throws {
+        let dir = sessionDirectory(id: id)
+        guard fileManager.fileExists(atPath: dir.path) else { return }
+        try fileManager.removeItem(at: dir)
+    }
+
+    func deleteObservation(id: UUID, from sessionID: String) throws {
+        let dir = sessionDirectory(id: sessionID)
+        let jsonURL = dir.appendingPathComponent("\(id.uuidString).json")
+        let photoURL = dir.appendingPathComponent("\(id.uuidString).jpg")
+        if fileManager.fileExists(atPath: jsonURL.path) {
+            try fileManager.removeItem(at: jsonURL)
+        }
+        if fileManager.fileExists(atPath: photoURL.path) {
+            try fileManager.removeItem(at: photoURL)
+        }
     }
 
     func listSessionManifests() throws -> [SessionManifest] {

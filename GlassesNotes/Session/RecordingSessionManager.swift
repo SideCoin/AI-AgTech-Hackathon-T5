@@ -29,19 +29,15 @@ final class RecordingSessionManager {
         self.observationCount = 0
         self.startTime = Date()
         self.state = .recording
-
-        let manifest = SessionManifest(id: newSessionID, startTime: Date(), endTime: nil)
-        do {
-            try store.saveSessionManifest(manifest)
-        } catch {
-            assertionFailure("Failed to save session manifest: \(error)")
-        }
     }
 
     func endSession() {
         guard state == .recording else { return }
         state = .ended
+        let sessionStart = startTime
         startTime = nil
+
+        guard observationCount > 0, sessionStart != nil else { return }
 
         do {
             var manifest = try store.loadSessionManifest(sessionID: sessionID)
@@ -56,6 +52,10 @@ final class RecordingSessionManager {
         guard state == .recording else { return }
 
         do {
+            if observationCount == 0, let sessionStart = startTime {
+                let manifest = SessionManifest(id: sessionID, startTime: sessionStart, endTime: nil)
+                try store.saveSessionManifest(manifest)
+            }
             try store.save(observation, photo: photo, to: sessionID)
             observationCount += 1
         } catch {
