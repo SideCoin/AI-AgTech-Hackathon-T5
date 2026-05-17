@@ -10,6 +10,8 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundleDisplayName</key>
+	<string>FieldLog</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleURLTypes</key>
@@ -37,15 +39,15 @@
 		<string>0</string>
 	</dict>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>FarmNote uses Bluetooth to connect to your Meta glasses.</string>
+	<string>FieldLog uses Bluetooth to connect to your Meta glasses.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>FarmNote accesses your glasses camera to capture field observations.</string>
+	<string>FieldLog accesses your glasses camera to capture field observations.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>FarmNote records your GPS location with each observation.</string>
+	<string>FieldLog records your GPS location with each observation.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>FarmNote uses the microphone to transcribe your voice notes.</string>
+	<string>FieldLog uses the microphone to transcribe your voice notes.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>FarmNote transcribes your voice notes using on-device speech recognition.</string>
+	<string>FieldLog transcribes your voice notes using on-device speech recognition.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>bluetooth-peripheral</string>
